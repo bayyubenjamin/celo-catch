@@ -1,0 +1,37 @@
+{
+  "name": "Celo Catch",
+  "description": "MiniPay-native casual fishing game built on Celo. Users cast daily, catch random fish, earn XP, and record gameplay onchain.",
+  "ecosystem": "celo",
+  "wallet_target": "minipay",
+  "category": "consumer-crypto-game",
+  "network": {
+    "mainnet": {
+      "chainId": 42220,
+      "rpc": "https://forno.celo.org",
+      "explorer": "https://celoscan.io",
+      "contract": "PASTE_MAINNET_CONTRACT_ADDRESS_HERE"
+    },
+    "alfajores": {
+      "chainId": 44787,
+      "rpc": "https://alfajores-forno.celo-testnet.org",
+      "explorer": "https://alfajores.celoscan.io",
+      "contract": "PASTE_ALFAJORES_CONTRACT_ADDRESS_HERE"
+    }
+  },
+  "tech": [
+    "nextjs",
+    "typescript",
+    "tailwindcss",
+    "ethers",
+    "solidity",
+    "remix"
+  ],
+  "features": [
+    "daily-cast",
+    "random-fish",
+    "xp-leaderboard",
+    "onchain-proof",
+    "mobile-first-ui",
+    "server-signed-results"
+  ]
+}
