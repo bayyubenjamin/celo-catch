@@ -1,42 +1,170 @@
 # Celo Catch
 
-Celo Catch is a MiniPay-first daily fishing game on Celo. Players open the app, receive one catch for the current UTC day, confirm the onchain action, earn XP, and appear on an event-based leaderboard.
+**Celo Catch** is a MiniPay-first daily fishing game built for the Celo ecosystem.
 
-The experience is deliberately small and friendly: no token promise, no DeFi dashboard, and no unnecessary wallet ceremony.
+The product turns a simple mobile game loop into a lightweight onchain experience: open the app, receive one daily catch, earn XP, and build a public participation history.
 
-## Status
+> **Current release: Version 1.0.0 — MiniPay Foundation**
+>
+> Version 1 delivers the complete application foundation, MiniPay-native wallet flow, contract source, security model, automated tests, and production-ready interface. The smart contract is intentionally **not deployed in Version 1**. Testnet deployment and live transaction activation are planned for the next release.
 
-- MiniPay-first mobile frontend
-- Automatic injected-wallet connection
-- Celo Sepolia as the default test network
-- Solidity contract included and compile-tested
-- Contract not deployed yet
-- Mainnet not configured yet
+## Release status
 
-Without a configured contract address, the application stays in preview mode and does not allow live casts.
+| Area | Version 1 status |
+|---|---|
+| MiniPay wallet integration | Ready and automated |
+| Mobile UI/UX | Ready |
+| Daily catch engine | Ready |
+| Server-signed catch flow | Ready |
+| Solidity contract | Implemented and compile-tested |
+| Automated verification | Passing |
+| Celo Sepolia contract | Not deployed in Version 1 |
+| Live MiniPay transaction | Planned for Version 1.1 |
+| Celo Mainnet launch | Planned after testnet validation |
 
-## MiniPay readiness
+Version 1 runs safely in **preview mode** when no contract address is configured. The interface can be reviewed and tested without presenting inactive blockchain functionality as live.
 
-The frontend detects MiniPay through the injected provider, obtains the existing account automatically, avoids showing a connect button, and uses Viem for contract writes. MiniPay network mismatches are handled with instructions for its **Use Testnet** setting instead of forcing a chain switch.
+## Version 1 scope
 
-The interface is single-column, safe-area aware, responsive from 320px, and uses touch targets suitable for an in-app mobile browser.
+### Included
+
+- MiniPay-aware injected wallet detection
+- Automatic account connection without a generic wallet-connect screen
+- Viem-based transaction architecture
+- Celo Sepolia as the default development network
+- Mobile-first interface designed for an in-app browser
+- Deterministic daily catch generation
+- Server-signed catch payloads
+- Replay-resistant nonce design
+- One-cast-per-day contract logic
+- Event-based leaderboard architecture
+- Strict TypeScript validation
+- Unit and wallet-provider tests
+- Solidity compilation checks
+- Production Next.js build verification
+- GitHub Actions verification workflow
+
+### Intentionally deferred
+
+The following items are not part of Version 1.0.0:
+
+- deployment of `CeloCatch.sol`;
+- public Celo Sepolia contract address;
+- live MiniPay transaction confirmation;
+- explorer-verified `FishCaught` events;
+- production RPC infrastructure;
+- Celo Mainnet deployment.
+
+These items are release work, not missing application architecture. They are scheduled for the next version after the Version 1 foundation is reviewed and accepted.
+
+## Product principles
+
+Celo Catch is designed around four principles:
+
+1. **Mobile first** — the primary environment is MiniPay, not a desktop wallet dashboard.
+2. **Low friction** — users should not need to understand bridges, gas markets, or DeFi terminology.
+3. **Verifiable gameplay** — valid catches can be recorded and independently verified on Celo.
+4. **No speculative promise** — Version 1 contains no token launch, guaranteed reward, or financial return claim.
+
+## How the game works
+
+When blockchain activation is enabled in Version 1.1, the intended flow is:
+
+1. The player opens Celo Catch inside MiniPay.
+2. The injected MiniPay account is detected automatically.
+3. The server generates the player's deterministic catch for the current UTC day.
+4. The server signs a payload bound to the contract, chain, player, fish, XP, nonce, day, and deadline.
+5. The player confirms the transaction in MiniPay.
+6. The contract verifies the signature and daily eligibility.
+7. The catch is emitted through `FishCaught` and added to the leaderboard history.
+
+In Version 1.0.0, the application stops before the live transaction stage unless a valid deployment configuration is supplied.
+
+## MiniPay-native architecture
+
+The frontend uses MiniPay's injected EIP-1193 provider through `window.ethereum`.
+
+The application:
+
+- detects the MiniPay environment using `isMiniPay`;
+- requests the already-injected account automatically;
+- avoids displaying an unnecessary **Connect Wallet** button inside MiniPay;
+- uses Viem for wallet clients and contract writes;
+- does not force MiniPay to switch networks;
+- provides clear instructions when MiniPay testnet settings do not match the configured chain;
+- reacts to account and network changes;
+- supports safe-area insets and small mobile viewports;
+- provides explicit loading, error, empty, preview, and transaction states.
 
 ## Security model
 
-The catch service creates a deterministic result for each wallet and UTC day. Repeating the API request on the same day therefore returns the same fish and nonce instead of allowing users to reroll until a rare result appears.
+### Deterministic daily result
 
-The signed result is bound to the contract, chain, player, fish, XP, nonce, day, and deadline. The contract verifies the signature, enforces one cast per day, validates XP, rejects expired results, and prevents nonce reuse.
+A wallet receives the same fish and nonce for the same UTC day. Repeated requests cannot be used to reroll the API until a rare fish appears.
 
-## Stack
+The result is derived from:
 
-- Next.js 16 and React 19
-- TypeScript and Tailwind CSS
+- chain ID;
+- contract address;
+- player address;
+- UTC day;
+- private server randomness secret.
+
+### Signed payload
+
+Each catch signature binds:
+
+- contract address;
+- chain ID;
+- player address;
+- fish type;
+- XP amount;
+- nonce;
+- UTC day;
+- expiration deadline.
+
+### Contract enforcement
+
+`contracts/CeloCatch.sol` enforces:
+
+- one cast per wallet per UTC day;
+- fish-to-XP validation;
+- signature expiration;
+- nonce replay protection;
+- server signer verification;
+- low-`s` ECDSA validation;
+- owner-controlled signer rotation.
+
+## Technology
+
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
 - Viem
 - Solidity
 - Vitest
 - GitHub Actions
 
+## Repository structure
+
+```text
+app/                        Next.js routes, metadata, and API endpoint
+components/                 MiniPay-first application interface
+contracts/CeloCatch.sol     Smart contract prepared for a later release
+lib/                        Celo, contract, wallet, and catch logic
+scripts/                    Contract and MiniPay verification scripts
+tests/                      Unit, provider, and signature tests
+docs/ROADMAP.md             Release sequence and acceptance criteria
+CHANGELOG.md                 Version history
+```
+
 ## Local development
+
+Requirements:
+
+- Node.js 20.9 or newer
+- npm
 
 ```bash
 npm install
@@ -44,59 +172,84 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`. An injected wallet is detected automatically.
+Open `http://localhost:3000`.
+
+Without a contract address, the application displays Version 1 preview mode. This is the expected state for the current release.
+
+## Environment configuration
+
+```dotenv
+NEXT_PUBLIC_CHAIN_ID=11142220
+NEXT_PUBLIC_RPC_URL=https://forno.celo-sepolia.celo-testnet.org
+NEXT_PUBLIC_CONTRACT_ADDRESS=
+NEXT_PUBLIC_START_BLOCK=0
+SERVER_SIGNER_PRIVATE_KEY=
+SERVER_RANDOMNESS_SECRET=
+```
+
+For Version 1.0.0, contract and signer values may remain empty.
+
+For Version 1.1.0, the contract address, deployment block, signer key, and randomness secret must be configured before live testing.
+
+Never expose server secrets using the `NEXT_PUBLIC_` prefix.
 
 ## Verification
+
+Run the complete verification pipeline:
 
 ```bash
 npm run verify
 ```
 
-This runs:
+The command performs:
 
-- strict TypeScript checks;
+- strict TypeScript checking;
 - deterministic catch tests;
-- simulated MiniPay provider tests;
-- Solidity compilation;
+- MiniPay provider simulation;
+- server-signature compatibility tests;
+- Solidity contract compilation;
 - MiniPay readiness checks;
-- a production Next.js build.
+- production Next.js build.
 
-The same verification runs in GitHub Actions.
+GitHub Actions executes the same pipeline for branch updates and pull requests.
 
-## Deploy the contract
+## Version plan
 
-The contract is located at `contracts/CeloCatch.sol`.
+### Version 1.0.0 — MiniPay Foundation
 
-1. Create a dedicated server-signing wallet.
-2. Deploy `CeloCatch` with its public address as `initialServerSigner`.
-3. Record the deployment block.
-4. Configure the web app using `.env.example`.
-5. Confirm the deployed `serverSigner()` value matches the signing wallet.
-6. Redeploy the web application.
+Current release.
 
-Start on Celo Sepolia. Move to Celo Mainnet only after the in-app MiniPay flow has passed end-to-end testing.
+- application architecture;
+- professional mobile UI/UX;
+- MiniPay-native wallet behavior;
+- security and contract implementation;
+- automated verification;
+- preview-mode operation.
 
-## Test inside MiniPay
+### Version 1.1.0 — Celo Sepolia Activation
 
-1. Deploy the application to an HTTPS URL.
-2. Enable Developer Mode from MiniPay's About screen.
-3. Open Developer Settings and enable **Use Testnet**.
-4. Use **Load Test Page** to open the deployed URL.
-5. Confirm that the wallet appears automatically without a connect button or signature prompt.
-6. Confirm that the app reports Celo Sepolia.
-7. Cast once and approve the transaction.
-8. Verify the `FishCaught` event in the explorer.
-9. Reload the app and confirm that today's cast is marked as used.
-10. Repeat the cast API request and confirm the fish and nonce do not change for that wallet and day.
+Next release.
 
-## Architecture notes
+- deploy `CeloCatch.sol` to Celo Sepolia;
+- configure server signer and deployment environment;
+- test a real transaction from MiniPay Developer Mode;
+- verify `FishCaught` events in the explorer;
+- validate one-cast-per-day behavior end to end;
+- publish the testnet contract address and deployment block.
 
-- Public RPC endpoints are suitable for testing; use dedicated infrastructure as traffic grows.
-- The current leaderboard aggregates contract events in the browser.
-- A larger season should use backend indexing.
-- Contract state and signature verification are the source of truth.
+### Version 1.2.0 — Mainnet Readiness
 
-## Game values
+Planned after testnet acceptance.
+
+- complete security review;
+- configure production RPC and monitoring;
+- finalize operational key management;
+- deploy to Celo Mainnet;
+- activate production gameplay.
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for release acceptance criteria.
+
+## Game distribution
 
 | Catch | XP | Probability |
 |---|---:|---:|
