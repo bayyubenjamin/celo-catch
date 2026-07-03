@@ -6,7 +6,7 @@ import {
   WalletNetworkError,
   type Eip1193Provider,
   type ProviderRequest,
-} from "@/lib/ethereum";
+} from "../lib/ethereum";
 
 const wallet = "0x1111111111111111111111111111111111111111";
 
