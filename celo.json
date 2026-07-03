@@ -1,23 +1,48 @@
 {
   "name": "Celo Catch",
-  "description": "A MiniPay-first daily fishing game on Celo with deterministic server-signed catches and onchain XP.",
+  "version": "1.0.0",
+  "release_name": "MiniPay Foundation",
+  "description": "A MiniPay-first daily fishing game on Celo with deterministic server-signed catches and onchain XP architecture.",
   "ecosystem": "celo",
   "wallet_target": "minipay",
   "category": "consumer-crypto-game",
-  "status": "contract-not-deployed",
+  "release_status": "foundation-ready",
+  "deployment_status": "not-deployed",
+  "live_transactions": false,
+  "next_release": "1.1.0-celo-sepolia-activation",
   "network": {
     "mainnet": {
       "chainId": 42220,
       "rpc": "https://forno.celo.org",
       "explorer": "https://celoscan.io",
-      "contract": null
+      "contract": null,
+      "status": "planned"
     },
     "celoSepolia": {
       "chainId": 11142220,
       "rpc": "https://forno.celo-sepolia.celo-testnet.org",
       "explorer": "https://celo-sepolia.blockscout.com",
-      "contract": null
+      "contract": null,
+      "status": "deployment-planned-for-v1.1.0"
     }
+  },
+  "version_1_scope": {
+    "included": [
+      "automatic-wallet-connection",
+      "minipay-provider-detection",
+      "daily-deterministic-catch",
+      "server-signed-result",
+      "contract-source",
+      "contract-compilation-test",
+      "event-based-leaderboard-architecture",
+      "mobile-first-ui",
+      "automated-verification"
+    ],
+    "deferred": [
+      "celo-sepolia-contract-deployment",
+      "live-minipay-transaction",
+      "celo-mainnet-deployment"
+    ]
   },
   "tech": [
     "nextjs",
@@ -26,13 +51,5 @@
     "viem",
     "solidity",
     "minipay"
-  ],
-  "features": [
-    "automatic-wallet-connection",
-    "daily-deterministic-catch",
-    "server-signed-result",
-    "onchain-xp",
-    "event-based-leaderboard",
-    "mobile-first-ui"
   ]
 }
