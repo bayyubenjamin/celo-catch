@@ -2,6 +2,7 @@
   "name": "celo-catch",
   "version": "1.0.0",
   "private": true,
+  "description": "A MiniPay-native daily onchain fishing game built for the Celo ecosystem.",
   "engines": { "node": ">=20.9.0" },
   "scripts": {
     "dev": "next dev",
