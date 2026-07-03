@@ -1,27 +1,35 @@
 {
   "name": "celo-catch",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:contract": "node scripts/compile-contract.mjs",
+    "check:minipay": "node scripts/check-minipay.mjs",
+    "verify": "npm run typecheck && npm test && npm run test:contract && npm run check:minipay && npm run build"
   },
   "dependencies": {
-    "dotenv": "latest",
-    "ethers": "latest",
-    "next": "^14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "viem": "2.53.1"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
-    "@types/react": "^19.2.16",
-    "@types/react-dom": "^19.2.3",
-    "autoprefixer": "^10.5.0",
-    "eslint": "latest",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^6.0.3"
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.16",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.5.0",
+    "postcss": "8.5.15",
+    "solc": "0.8.30",
+    "tailwindcss": "3.4.17",
+    "typescript": "6.0.3",
+    "vitest": "4.0.0"
   }
 }
