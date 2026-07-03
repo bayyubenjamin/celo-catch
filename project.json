@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "Celo Catch",
+    "slug": "celo-catch",
+    "version": "1.0.0",
+    "repository": "bayyubenjamin/celo-catch",
+    "visibility": "public",
+    "category": "consumer-onchain-game",
+    "primaryEcosystem": "celo",
+    "multiChain": false,
+    "deploymentStatus": "source-ready-not-deployed"
+  },
+  "ecosystem": {
+    "name": "Celo",
+    "slug": "celo",
+    "chainNamespace": "eip155",
+    "mainnet": {
+      "name": "Celo Mainnet",
+      "chainId": 42220,
+      "caip2": "eip155:42220"
+    },
+    "testnet": {
+      "name": "Celo Sepolia",
+      "chainId": 11142220,
+      "caip2": "eip155:11142220"
+    }
+  },
+  "integrations": [
+    {
+      "name": "MiniPay",
+      "type": "wallet-and-mini-app-runtime",
+      "provider": "window.ethereum",
+      "detectionFlag": "isMiniPay",
+      "transactionLibrary": "viem"
+    }
+  ],
+  "smartContracts": {
+    "language": "Solidity",
+    "source": "contracts/CeloCatch.sol",
+    "deployments": []
+  },
+  "evidence": [
+    {
+      "type": "chain-configuration",
+      "path": "lib/celo-networks.ts"
+    },
+    {
+      "type": "runtime-chain-selection",
+      "path": "lib/config.ts"
+    },
+    {
+      "type": "minipay-provider-integration",
+      "path": "lib/ethereum.ts"
+    },
+    {
+      "type": "celo-contract-source",
+      "path": "contracts/CeloCatch.sol"
+    },
+    {
+      "type": "celo-chain-tests",
+      "path": "tests/celo-ecosystem.test.ts"
+    },
+    {
+      "type": "ecosystem-documentation",
+      "path": "docs/CELO_ECOSYSTEM.md"
+    }
+  ],
+  "verification": {
+    "command": "npm run verify",
+    "ci": ".github/workflows/verify.yml"
+  }
+}
