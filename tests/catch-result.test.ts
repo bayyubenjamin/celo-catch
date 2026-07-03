@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDailyCatch, fishTable } from "@/lib/catch-result";
+import { createDailyCatch, fishTable } from "../lib/catch-result";
 
 const input = {
   account: "0x1111111111111111111111111111111111111111",
