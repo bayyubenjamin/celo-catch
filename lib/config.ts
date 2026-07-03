@@ -1,9 +1,10 @@
 import { isAddress, type Address } from "viem";
 import { celo, celoSepolia } from "viem/chains";
+import { resolveCeloChain } from "./celo-networks";
 
 const requestedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? celoSepolia.id);
 
-export const appChain = requestedChainId === celo.id ? celo : celoSepolia;
+export const appChain = resolveCeloChain(requestedChainId);
 export const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? appChain.rpcUrls.default.http[0];
 
 const configuredAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? "";
