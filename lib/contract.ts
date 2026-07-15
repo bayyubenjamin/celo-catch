@@ -1,14 +1,13 @@
 import { parseAbi, parseAbiItem } from "viem";
 
 export const celoCatchAbi = parseAbi([
-  "function recordCatch(uint8 fishType, uint256 xp, uint256 nonce, uint256 day, uint256 deadline, bytes signature)",
-  "function canCast(address player) view returns (bool)",
-  "function totalCasts() view returns (uint256)",
+  "function recordCatch() external",
+  "function equipRod(uint256 rodId) external",
   "function playerXP(address player) view returns (uint256)",
-  "function playerCasts(address player) view returns (uint256)",
-  "event FishCaught(address indexed player, uint8 fishType, uint256 xp, uint256 day, uint256 nonce, uint256 timestamp)",
+  "function playerRod(address player) view returns (uint256)",
+  "event FishCaught(address indexed player, uint8 fishType, uint256 xp)",
 ]);
 
 export const fishCaughtEvent = parseAbiItem(
-  "event FishCaught(address indexed player, uint8 fishType, uint256 xp, uint256 day, uint256 nonce, uint256 timestamp)",
+  "event FishCaught(address indexed player, uint8 fishType, uint256 xp)"
 );

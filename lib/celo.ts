@@ -22,15 +22,13 @@ export const publicClient = createPublicClient({
 export async function loadGameSnapshot(player?: Address): Promise<GameSnapshot> {
   if (!contractAddress) return { totalCasts: 0, canCast: false, leaders: [] };
 
-  const [totalCasts, canCast, leaders] = await Promise.all([
-    publicClient.readContract({ address: contractAddress, abi: celoCatchAbi, functionName: "totalCasts" }),
-    player
-      ? publicClient.readContract({ address: contractAddress, abi: celoCatchAbi, functionName: "canCast", args: [player] })
-      : Promise.resolve(false),
-    loadLeaderboard(publicClient),
-  ]);
+  const leaders = await loadLeaderboard(publicClient);
+  
+  // Hitung total cast keseluruhan dari seluruh log event leaderboard
+  const totalCasts = leaders.reduce((sum, leader) => sum + leader.casts, 0);
 
-  return { totalCasts: Number(totalCasts), canCast, leaders };
+  // Kontrak baru tidak membatasi cast (memancing), jadi selalu return true
+  return { totalCasts, canCast: true, leaders };
 }
 
 async function loadLeaderboard(client: typeof publicClient): Promise<LeaderboardEntry[]> {
@@ -46,6 +44,7 @@ async function loadLeaderboard(client: typeof publicClient): Promise<Leaderboard
     const toBlock = fromBlock + chunkSize - 1n > latestBlock
       ? latestBlock
       : fromBlock + chunkSize - 1n;
+      
     const logs = await client.getLogs({
       address: contractAddress,
       event: fishCaughtEvent,
@@ -61,7 +60,7 @@ async function loadLeaderboard(client: typeof publicClient): Promise<Leaderboard
       const key = player.toLowerCase();
       const current = aggregate.get(key) ?? { address: player, xp: 0, casts: 0 };
       current.xp += Number(xp);
-      current.casts += 1;
+      current.casts += 1; // Menghitung setiap event log sebagai 1 cast
       aggregate.set(key, current);
     }
   }
