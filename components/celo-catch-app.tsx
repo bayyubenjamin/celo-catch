@@ -65,7 +65,7 @@ export default function CeloCatchApp() {
     getMiniPayAddress(provider)
       .then((address) => {
         if (address) {
-          // ✅ PERBAIKAN DI SINI: Konversi tipe string menjadi `Address` milik Viem
+          // Konversi tipe string menjadi `Address` milik Viem
           const validAddress = address as Address; 
           setAccount(validAddress);
           return refreshGame(validAddress);
@@ -106,7 +106,8 @@ export default function CeloCatchApp() {
     setStatus("Persiapkan pancingmu. Konfirmasi di MiniPay...");
 
     try {
-      await ensureExpectedChain(provider, appChain, rpcUrl);
+      // ✅ PERBAIKAN DI SINI: Hanya mengirimkan 2 argumen (provider dan ID jaringan)
+      await ensureExpectedChain(provider, appChain.id);
 
       const walletClient = createWalletClient({
         account,
