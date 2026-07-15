@@ -228,17 +228,18 @@ export default function CeloCatchApp() {
 
       for (const log of receipt.logs) {
         try {
-          const decoded = decodeEventLog({
-            abi: celoCatchAbi,
-            data: log.data,
-            topics: log.topics,
-          });
-          if (decoded.eventName === "FishCaught") {
-            caughtFishType = Number(decoded.args.fishType);
-            caughtXp = Number(decoded.args.xp);
-          }
-        } catch (e) { /* Abaikan log yang bukan dari kontrak ini */ }
-      }
+            const decoded = decodeEventLog({
+              abi: celoCatchAbi,
+              data: log.data,
+              topics: log.topics,
+            });
+            
+            if (decoded.eventName === "FishCaught") {
+              const args = decoded.args as any;
+              caughtFishType = Number(args.fishType);
+              caughtXp = Number(args.xp);
+            }
+          } catch (e) { /* Abaikan log yang bukan dari kontrak ini */ }
 
       const caughtFishInfo = fishGuide.find((f) => f.type === caughtFishType) || fishGuide[0];
 
