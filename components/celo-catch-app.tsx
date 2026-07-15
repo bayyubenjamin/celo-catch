@@ -1,115 +1,177 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BaseError,
   createWalletClient,
   custom,
-  decodeEventLog,
-  createPublicClient,
-  http,
   type Address,
   type Hash,
 } from "viem";
 import { 
   appChain, 
   contractAddress, 
-  rodAddress, 
-  nftAddress, 
-  tokenAddress, 
-  rpcUrl 
+  isMainnet, 
+  rpcUrl,
+  rodAddress,
+  nftAddress,
+  tokenAddress 
 } from "@/lib/config";
+import { loadGameSnapshot, publicClient, type LeaderboardEntry } from "@/lib/celo";
 import { celoCatchAbi } from "@/lib/contract";
-import { loadGameSnapshot, type GameSnapshot } from "@/lib/celo";
 import {
   ensureExpectedChain,
-  getMiniPayAddress,
-  getMiniPayProvider,
-  injectMiniPayStyle,
-  type MiniPayProvider,
+  getInjectedProvider,
+  isMiniPayProvider,
+  requestPrimaryAccount,
+  type Eip1193Provider,
 } from "@/lib/ethereum";
 
-const publicClient = createPublicClient({
-  chain: appChain,
-  transport: http(rpcUrl),
-});
+type WalletPhase = "checking" | "ready" | "missing" | "error";
 
 type CatchResult = {
   fishType: number;
   name: string;
   emoji: string;
   xp: number;
+  nonce: string;
+  day: number;
+  deadline: number;
+  signature: `0x${string}`;
 };
 
 const fishGuide = [
-  { type: 1, name: "Celo Carp", emoji: "🐟", rarity: "Common", desc: "Ikan paling setia di ekosistem Celo." },
-  { type: 2, name: "Valora Trout", emoji: "🐠", rarity: "Uncommon", desc: "Berenang cepat bagai transaksi MiniPay." },
-  { type: 3, name: "Mento Mackerel", emoji: "🐡", rarity: "Rare", desc: "Ikan langka penyeimbang stabilitas laut." },
-  { type: 4, name: "Gold Celo Whale", emoji: "🐋", rarity: "Epic", desc: "Legenda penguasa lautan terdalam Celo!" },
+  { emoji: "🐟", name: "Tiny", xp: 10 },
+  { emoji: "🐠", name: "Blue", xp: 25 },
+  { emoji: "🐡", name: "Puffer", xp: 75 },
+  { emoji: "✨", name: "Golden", xp: 150 },
+  { emoji: "🦈", name: "Shark", xp: 350 },
+  { emoji: "🐋", name: "Whale", xp: 1000 },
 ];
 
 export default function CeloCatchApp() {
+  const providerRef = useRef<Eip1193Provider | null>(null);
+  const [walletPhase, setWalletPhase] = useState<WalletPhase>("checking");
   const [account, setAccount] = useState<Address | null>(null);
-  const [game, setGame] = useState<GameSnapshot>({ totalCasts: 0, canCast: false, leaders: [] });
-  const [loading, setLoading] = useState<boolean>(false);
-  const [status, setStatus] = useState<string>("Initializing MiniPay environment...");
+  const [miniPay, setMiniPay] = useState(false);
+  const [status, setStatus] = useState("Checking your MiniPay wallet…");
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [canCast, setCanCast] = useState(false);
+  const [totalCasts, setTotalCasts] = useState(0);
+  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const [lastCatch, setLastCatch] = useState<CatchResult | null>(null);
   const [transactionHash, setTransactionHash] = useState<Hash | null>(null);
 
-  const providerRef = useRef<MiniPayProvider | null>(null);
+  const configured = contractAddress !== null;
+  const explorerUrl = appChain.blockExplorers?.default.url;
 
-  useEffect(() => {
-    injectMiniPayStyle();
+  const shortAccount = useMemo(
+    () => (account ? `${account.slice(0, 6)}…${account.slice(-4)}` : "—"),
+    [account],
+  );
 
-    const provider = getMiniPayProvider();
-    if (!provider) {
-      setStatus("MiniPay / Web3 provider tidak terdeteksi.");
+  const refreshGame = useCallback(async (player?: Address | null) => {
+    if (!configured) {
+      setTotalCasts(0);
+      setCanCast(false);
+      setLeaders([]);
       return;
     }
-    providerRef.current = provider;
 
-    getMiniPayAddress(provider)
-      .then((address) => {
-        if (address) {
-          setAccount(address);
-          return refreshGame(address);
-        } else {
-          setStatus("Gagal mendapatkan alamat wallet MiniPay.");
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        setStatus("Koneksi wallet gagal terhubung.");
-      });
-  }, []);
-
-  async function refreshGame(playerAddress?: Address) {
+    setRefreshing(true);
     try {
-      const snapshot = await loadGameSnapshot(playerAddress);
-      setGame(snapshot);
-      if (playerAddress) {
-        setStatus("Siap melempar pancingan di Celo Mainnet!");
-      }
+      const snapshot = await loadGameSnapshot(player ?? undefined);
+      setTotalCasts(snapshot.totalCasts);
+      setCanCast(snapshot.canCast);
+      setLeaders(snapshot.leaders);
     } catch (error) {
       console.error(error);
-      setStatus("Gagal memuat status data permainan.");
+      setStatus("Celo data is temporarily unavailable. Pull down and try again.");
+    } finally {
+      setRefreshing(false);
     }
-  }
+  }, [configured]);
 
-  const canCast = game.canCast && !loading && !!account;
-  const playerStats = account ? game.leaders.find((l) => l.address.toLowerCase() === account.toLowerCase()) : null;
+  const connectInjectedWallet = useCallback(async () => {
+    const provider = getInjectedProvider();
+    providerRef.current = provider;
+
+    if (!provider) {
+      setWalletPhase("missing");
+      setStatus("Open Celo Catch from the MiniPay app to start fishing.");
+      return;
+    }
+
+    setMiniPay(isMiniPayProvider(provider));
+    setWalletPhase("checking");
+
+    try {
+      const address = await requestPrimaryAccount(provider);
+      await ensureExpectedChain(provider, appChain, rpcUrl);
+      setAccount(address);
+      setWalletPhase("ready");
+      setStatus(
+        configured
+          ? "Your daily cast is ready."
+          : "Wallet ready. The contract still needs to be deployed.",
+      );
+      await refreshGame(address);
+    } catch (error) {
+      console.error(error);
+      setAccount(null);
+      setWalletPhase("error");
+      setStatus(readableError(error));
+    }
+  }, [configured, refreshGame]);
+
+  useEffect(() => {
+    void connectInjectedWallet();
+  }, [connectInjectedWallet]);
+
+  useEffect(() => {
+    const provider = providerRef.current;
+    if (!provider?.on) return;
+
+    const onAccountsChanged = () => void connectInjectedWallet();
+    const onChainChanged = () => void connectInjectedWallet();
+
+    provider.on("accountsChanged", onAccountsChanged);
+    provider.on("chainChanged", onChainChanged);
+
+    return () => {
+      provider.removeListener?.("accountsChanged", onAccountsChanged);
+      provider.removeListener?.("chainChanged", onChainChanged);
+    };
+  }, [connectInjectedWallet]);
 
   async function castLine() {
     const provider = providerRef.current;
-    if (!provider || !account || !contractAddress) return;
+    if (!provider || !account || !contractAddress || !canCast) return;
 
     setLoading(true);
     setLastCatch(null);
     setTransactionHash(null);
-    setStatus("Persiapkan pancingmu. Konfirmasi di MiniPay...");
+    setStatus("Finding today’s catch…");
 
     try {
       await ensureExpectedChain(provider, appChain, rpcUrl);
+
+      const response = await fetch("/api/cast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account }),
+      });
+      const payload: unknown = await response.json();
+
+      if (!response.ok || !isCatchResult(payload)) {
+        const message = isErrorPayload(payload)
+          ? payload.error
+          : "The catch service returned an invalid response.";
+        throw new Error(message);
+      }
+
+      setStatus("Catch found. Confirm the transaction in MiniPay.");
 
       const walletClient = createWalletClient({
         account,
@@ -121,43 +183,22 @@ export default function CeloCatchApp() {
         address: contractAddress,
         abi: celoCatchAbi,
         functionName: "recordCatch",
+        args: [
+          payload.fishType,
+          BigInt(payload.xp),
+          BigInt(payload.nonce),
+          BigInt(payload.day),
+          BigInt(payload.deadline),
+          payload.signature,
+        ],
       });
 
       setTransactionHash(hash);
-      setStatus("Sedang menarik pancingan di jaringan Celo...");
+      setStatus("Recording your catch on Celo…");
+      await publicClient.waitForTransactionReceipt({ hash });
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-      let caughtFishType = 1;
-      let caughtXp = 10;
-
-      for (const log of receipt.logs) {
-        try {
-          const decoded = decodeEventLog({
-            abi: celoCatchAbi,
-            data: log.data,
-            topics: log.topics,
-          });
-
-          if (decoded.eventName === "FishCaught") {
-            caughtFishType = Number(decoded.args.fishType);
-            caughtXp = Number(decoded.args.xp);
-          }
-        } catch (e) {
-          // Abaikan log lain
-        }
-      }
-
-      const caughtFishInfo = fishGuide.find((f) => f.type === caughtFishType) || fishGuide[0];
-
-      setLastCatch({
-        fishType: caughtFishType,
-        name: caughtFishInfo.name,
-        emoji: caughtFishInfo.emoji,
-        xp: caughtXp,
-      });
-
-      setStatus("Tangkapan berhasil dicatat on-chain!");
+      setLastCatch(payload);
+      setStatus("Catch recorded. Come back tomorrow for another cast.");
       await refreshGame(account);
     } catch (error) {
       console.error(error);
@@ -167,218 +208,241 @@ export default function CeloCatchApp() {
     }
   }
 
+  const castDisabled =
+    loading || walletPhase !== "ready" || !account || !configured || !canCast;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 to-amber-100 text-slate-800 font-sans pb-12">
-      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-sky-100 px-4 py-3 shadow-sm">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🎣</span>
-            <h1 className="font-bold text-xl bg-gradient-to-r from-sky-600 to-teal-600 bg-clip-text text-transparent">
-              CeloCatch
-            </h1>
+    <main className="app-shell">
+      <div className="page-wrap">
+        <header className="topbar">
+          <div className="brand-mark" aria-hidden="true">C</div>
+          <div>
+            <p className="eyebrow">A tiny daily game on Celo</p>
+            <h1>Celo Catch</h1>
           </div>
-          {account ? (
-            <div className="bg-sky-50 px-3 py-1 rounded-full border border-sky-100 text-xs font-mono text-sky-700 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              {account.slice(0, 6)}...{account.slice(-4)}
-            </div>
-          ) : (
-            <div className="bg-rose-50 px-3 py-1 rounded-full border border-rose-100 text-xs text-rose-600 font-medium">
-              Connecting Wallet
-            </div>
-          )}
-        </div>
-      </header>
+          <span className={`network-pill ${miniPay ? "is-minipay" : ""}`}>
+            {miniPay ? "MiniPay" : appChain.name}
+          </span>
+        </header>
 
-      <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
-        <section className="bg-white rounded-3xl p-6 shadow-xl shadow-sky-900/5 border border-sky-50/50 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-sky-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-70"></div>
+        <section className="pond-card" aria-labelledby="today-heading">
+          <div className="pond-copy">
+            <p className="section-kicker">Genesis pond</p>
+            <h2 id="today-heading">One cast. One catch. Every day.</h2>
+            <p>
+              Find a fish, earn XP, and leave a small onchain trail without the usual Web3 clutter.
+            </p>
+          </div>
+          <div className="pond-scene" aria-hidden="true">
+            <span className="sun-dot" />
+            <span className="fishing-line" />
+            <span className="hook">⌁</span>
+            <span className="fish fish-one">🐟</span>
+            <span className="fish fish-two">🐠</span>
+            <span className="water-line water-one" />
+            <span className="water-line water-two" />
+          </div>
+        </section>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Your Level / XP</p>
-              <p className="text-2xl font-bold text-slate-700 flex items-baseline gap-1">
-                {playerStats ? Math.floor(playerStats.xp / 100) + 1 : 1}
-                <span className="text-xs text-slate-400 font-normal">({playerStats?.xp ?? 0} XP)</span>
-              </p>
+        {!configured && (
+          <aside className="setup-note" role="note">
+            <strong>Preview mode</strong>
+            <span>Deploy the contract and add its address to enable live casts.</span>
+          </aside>
+        )}
+
+        <section className="action-card" aria-labelledby="cast-heading">
+          <div className="card-heading-row">
+            <div>
+              <p className="section-kicker">Today</p>
+              <h2 id="cast-heading">Your daily cast</h2>
             </div>
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Total Casts</p>
-              <p className="text-2xl font-bold text-slate-700">{playerStats?.casts ?? 0}</p>
-            </div>
+            <span className={`availability ${canCast ? "available" : ""}`}>
+              {configured ? (canCast ? "Available" : "Used") : "Setup pending"}
+            </span>
           </div>
 
-          <div className="bg-gradient-to-b from-sky-300 to-sky-500 rounded-2xl h-44 mb-6 relative overflow-hidden flex flex-col items-center justify-center border-b-4 border-sky-600 shadow-inner">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20"></div>
-
-            {loading ? (
-              <div className="flex flex-col items-center gap-3">
-                <span className="text-4xl animate-bounce">🎣</span>
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 bg-white rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                  <span className="w-2 h-2 bg-white rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                  <span className="w-2 h-2 bg-white rounded-full animate-bounce"></span>
-                </div>
-              </div>
-            ) : lastCatch ? (
-              <div className="flex flex-col items-center text-center animate-fade-in">
-                <span className="text-6xl mb-1 drop-shadow-md animate-wiggle">{lastCatch.emoji}</span>
-                <h4 className="text-white font-bold text-lg drop-shadow-sm">{lastCatch.name}</h4>
-                <span className="bg-white/20 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full backdrop-blur-sm mt-1">
-                  +{lastCatch.xp} XP
-                </span>
-              </div>
-            ) : (
-              <div className="text-center space-y-1">
-                <span className="text-4xl block opacity-80">🌊</span>
-                <p className="text-sky-100 text-xs font-medium">Lautan Mainnet menanti pancinganmu</p>
-              </div>
-            )}
-          </div>
+          <dl className="wallet-summary">
+            <div>
+              <dt>Wallet</dt>
+              <dd>{walletPhase === "checking" ? "Connecting…" : shortAccount}</dd>
+            </div>
+            <div>
+              <dt>Network</dt>
+              <dd>{isMainnet ? "Celo Mainnet" : "Celo Sepolia"}</dd>
+            </div>
+            <div>
+              <dt>All-time casts</dt>
+              <dd>{refreshing ? "…" : totalCasts.toLocaleString()}</dd>
+            </div>
+          </dl>
 
           <button
+            type="button"
+            className="cast-button"
             onClick={castLine}
-            disabled={!canCast}
-            className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2 text-base ${
-              canCast
-                ? "bg-gradient-to-r from-sky-500 to-teal-500 hover:from-sky-600 hover:to-teal-600 shadow-sky-500/20 active:scale-[0.98]"
-                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-            }`}
+            disabled={castDisabled}
           >
-            {loading ? "Menarik Tali Pancing..." : "Lempar Pancingan"}
+            <span aria-hidden="true">🎣</span>
+            <span>{loading ? "Casting…" : canCast ? "Cast today’s line" : "Come back tomorrow"}</span>
           </button>
 
-          <div className="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-start gap-2.5">
-            <span className="text-sm mt-0.5">💡</span>
-            <p className="text-xs text-slate-500 leading-relaxed font-medium">{status}</p>
-          </div>
+          <p className="status-copy" role="status" aria-live="polite">{status}</p>
 
-          {transactionHash && (
-            <div className="mt-2 text-center">
-              <a
-                href={`https://celoscan.io/tx/${transactionHash}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[10px] text-sky-600 font-mono hover:underline"
-              >
-                Tx: {transactionHash.slice(0, 20)}...
-              </a>
-            </div>
+          {transactionHash && explorerUrl && (
+            <a
+              className="transaction-link"
+              href={`${explorerUrl}/tx/${transactionHash}`}
+            >
+              View transaction
+            </a>
           )}
         </section>
 
-        <section className="bg-white rounded-3xl p-6 shadow-xl shadow-sky-900/5 border border-sky-50/50">
-          <h3 className="font-bold text-sm text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <span>📚</span> Panduan Spesies Ikan
-          </h3>
-          <div className="space-y-3">
+        {lastCatch && (
+          <section className="catch-card" aria-label="Latest catch">
+            <div className="catch-emoji" aria-hidden="true">{lastCatch.emoji}</div>
+            <div>
+              <p className="section-kicker">Caught today</p>
+              <h2>{lastCatch.name}</h2>
+              <p className="catch-xp">+{lastCatch.xp} XP</p>
+            </div>
+          </section>
+        )}
+
+        <section className="leaderboard-card" aria-labelledby="leaderboard-heading">
+          <div className="card-heading-row">
+            <div>
+              <p className="section-kicker">Genesis season</p>
+              <h2 id="leaderboard-heading">Top fishers</h2>
+            </div>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void refreshGame(account)}
+              disabled={refreshing || !configured}
+            >
+              {refreshing ? "Refreshing" : "Refresh"}
+            </button>
+          </div>
+
+          <div className="leader-list">
+            {leaders.length === 0 ? (
+              <div className="empty-state">
+                <span aria-hidden="true">🌊</span>
+                <p>{configured ? "No catches yet. The pond is still quiet." : "Leaderboard appears after contract deployment."}</p>
+              </div>
+            ) : (
+              leaders.map((leader, index) => (
+                <LeaderRow key={leader.address} leader={leader} rank={index + 1} />
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="guide-card" aria-labelledby="guide-heading">
+          <p className="section-kicker">Pond guide</p>
+          <h2 id="guide-heading">What might bite?</h2>
+          <div className="fish-grid">
             {fishGuide.map((fish) => (
-              <div key={fish.type} className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                <span className="text-3xl bg-white w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
-                  {fish.emoji}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="font-bold text-sm text-slate-700 truncate">{fish.name}</h4>
-                    <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wide ${
-                        fish.rarity === "Epic"
-                          ? "bg-purple-50 text-purple-600 border border-purple-100"
-                          : fish.rarity === "Rare"
-                          ? "bg-amber-50 text-amber-600 border border-amber-100"
-                          : fish.rarity === "Uncommon"
-                          ? "bg-sky-50 text-sky-600 border border-sky-100"
-                          : "bg-slate-200/60 text-slate-600"
-                      }`}
-                    >
-                      {fish.rarity}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">{fish.desc}</p>
+              <div className="fish-tile" key={fish.name}>
+                <span aria-hidden="true">{fish.emoji}</span>
+                <div>
+                  <strong>{fish.name}</strong>
+                  <small>{fish.xp} XP</small>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="bg-white rounded-3xl p-6 shadow-xl shadow-sky-900/5 border border-sky-50/50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-sm text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <span>🏆</span> Papan Peringkat Pemancing
-            </h3>
-            <span className="text-[10px] bg-sky-50 text-sky-600 px-2 py-0.5 rounded-full font-bold">
-              Total Tarikan: {game.totalCasts}
-            </span>
+        {/* --- KODE TAMBAHAN: Ekosistem Kontrak Terintegrasi --- */}
+        <section className="action-card" aria-labelledby="ecosystem-heading">
+          <div className="card-heading-row">
+            <div>
+              <p className="section-kicker">Contracts</p>
+              <h2 id="ecosystem-heading">Mainnet Ecosystem</h2>
+            </div>
           </div>
-
-          <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto pr-1">
-            {game.leaders.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-400 font-medium">
-                Belum ada rekor memancing tercatat.
-              </div>
-            ) : (
-              game.leaders.map((leader, index) => {
-                const isMe = account && leader.address.toLowerCase() === account.toLowerCase();
-                return (
-                  <div key={leader.address} className={`flex items-center justify-between py-3 ${isMe ? "bg-sky-50/40 -mx-2 px-2 rounded-xl" : ""}`}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className={`w-5 font-bold text-sm text-center ${index < 3 ? "text-amber-500" : "text-slate-400"}`}>
-                        {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className={`text-sm font-semibold truncate ${isMe ? "text-sky-700 font-bold" : "text-slate-700"}`}>
-                          {leader.address.slice(0, 6)}...{leader.address.slice(-4)} {isMe ? "(Kamu)" : ""}
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-medium">{leader.casts}x tarikan sukses</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-bold text-sm text-slate-700">{leader.xp}</span>
-                      <span className="text-[10px] text-slate-400 block font-medium">XP</span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+          <dl className="wallet-summary">
+            <div>
+              <dt>Core Game</dt>
+              <dd>{contractAddress ? `${contractAddress.slice(0, 6)}…${contractAddress.slice(-4)}` : "Not Set"}</dd>
+            </div>
+            <div>
+              <dt>Fishing Rod</dt>
+              <dd>{rodAddress ? `${rodAddress.slice(0, 6)}…${rodAddress.slice(-4)}` : "Not Set"}</dd>
+            </div>
+            <div>
+              <dt>NFT Assets</dt>
+              <dd>{nftAddress ? `${nftAddress.slice(0, 6)}…${nftAddress.slice(-4)}` : "Not Set"}</dd>
+            </div>
+            <div>
+              <dt>$CATCH Token</dt>
+              <dd>{tokenAddress ? `${tokenAddress.slice(0, 6)}…${tokenAddress.slice(-4)}` : "Not Set"}</dd>
+            </div>
+          </dl>
         </section>
-      </main>
+        {/* --- AKHIR KODE TAMBAHAN --- */}
 
-      {/* Footer Info Ekosistem Mainnet Terintegrasi */}
-      <footer className="text-center mt-8 px-4 text-[10px] text-slate-400 font-medium space-y-2 pb-8">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full mb-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <p className="font-bold">CeloCatch Mainnet Terintegrasi</p>
-        </div>
-        <div className="grid grid-cols-1 gap-1.5 font-mono text-[9px] opacity-80 max-w-xs mx-auto text-left bg-white/60 p-3.5 rounded-xl border border-sky-100 shadow-sm">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Core Game:</span> 
-            <span className="text-slate-700">{contractAddress ? `${contractAddress.slice(0, 8)}...${contractAddress.slice(-6)}` : "Not Set"}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Fishing Rod:</span> 
-            <span className="text-slate-700">{rodAddress ? `${rodAddress.slice(0, 8)}...${rodAddress.slice(-6)}` : "Not Set"}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">NFT Assets:</span> 
-            <span className="text-slate-700">{nftAddress ? `${nftAddress.slice(0, 8)}...${nftAddress.slice(-6)}` : "Not Set"}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">$CATCH Token:</span> 
-            <span className="text-slate-700">{tokenAddress ? `${tokenAddress.slice(0, 8)}...${tokenAddress.slice(-6)}` : "Not Set"}</span>
-          </div>
-        </div>
-      </footer>
+        <footer>
+          <span>Built on Celo</span>
+          <span aria-hidden="true">•</span>
+          <span>Designed for MiniPay</span>
+        </footer>
+      </div>
+    </main>
+  );
+}
+
+function LeaderRow({ leader, rank }: { leader: LeaderboardEntry; rank: number }) {
+  const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+
+  return (
+    <div className="leader-row">
+      <span className="rank" aria-label={`Rank ${rank}`}>{medal}</span>
+      <div className="leader-address">
+        <strong>{leader.address.slice(0, 6)}…{leader.address.slice(-4)}</strong>
+        <small>{leader.casts} {leader.casts === 1 ? "cast" : "casts"}</small>
+      </div>
+      <strong className="leader-xp">{leader.xp.toLocaleString()} XP</strong>
     </div>
   );
 }
 
+function isCatchResult(value: unknown): value is CatchResult {
+  if (typeof value !== "object" || value === null) return false;
+  const item = value as Record<string, unknown>;
+
+  return (
+    typeof item.fishType === "number" &&
+    typeof item.name === "string" &&
+    typeof item.emoji === "string" &&
+    typeof item.xp === "number" &&
+    typeof item.nonce === "string" &&
+    typeof item.day === "number" &&
+    typeof item.deadline === "number" &&
+    typeof item.signature === "string" &&
+    item.signature.startsWith("0x")
+  );
+}
+
+function isErrorPayload(value: unknown): value is { error: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "error" in value &&
+    typeof value.error === "string"
+  );
+}
+
 function readableError(error: unknown): string {
-  if (error instanceof BaseError) {
-    if (error.shortMessage.includes("User rejected")) {
-      return "Transaksi dibatalkan oleh pengguna.";
+  if (error instanceof BaseError) return error.shortMessage;
+  if (error instanceof Error) {
+    if (/user rejected|denied|cancelled/i.test(error.message)) {
+      return "Transaction cancelled. Your daily cast is still available.";
     }
-    return error.shortMessage;
+    return error.message;
   }
-  return error instanceof Error ? error.message : "Terjadi kesalahan transaksi tidak terduga.";
+  return "Something went wrong. Please try again.";
 }
