@@ -11,8 +11,15 @@ import {
   type Address,
   type Hash,
 } from "viem";
-import { appChain, contractAddress, contractStartBlock, rpcUrl } from "@/lib/config";
-import { celoCatchAbi, fishCaughtEvent } from "@/lib/contract";
+import { 
+  appChain, 
+  contractAddress, 
+  rodAddress, 
+  nftAddress, 
+  tokenAddress, 
+  rpcUrl 
+} from "@/lib/config";
+import { celoCatchAbi } from "@/lib/contract";
 import { loadGameSnapshot, type GameSnapshot } from "@/lib/celo";
 import {
   ensureExpectedChain,
@@ -22,7 +29,6 @@ import {
   type MiniPayProvider,
 } from "@/lib/ethereum";
 
-// ✅ FIX VERCEL: Pindahkan ke atas agar tidak memicu error blok variabel (Desain / class UI di bawah 100% tidak ada yang disentuh)
 const publicClient = createPublicClient({
   chain: appChain,
   transport: http(rpcUrl),
@@ -82,7 +88,7 @@ export default function CeloCatchApp() {
       const snapshot = await loadGameSnapshot(playerAddress);
       setGame(snapshot);
       if (playerAddress) {
-        setStatus("Siap melempar pancingan!");
+        setStatus("Siap melempar pancingan di Celo Mainnet!");
       }
     } catch (error) {
       console.error(error);
@@ -90,7 +96,6 @@ export default function CeloCatchApp() {
     }
   }
 
-  // Karena contract baru canCast selalu true (limitasi harian dihapus di contract baru)
   const canCast = game.canCast && !loading && !!account;
   const playerStats = account ? game.leaders.find((l) => l.address.toLowerCase() === account.toLowerCase()) : null;
 
@@ -112,7 +117,6 @@ export default function CeloCatchApp() {
         transport: custom(provider),
       });
 
-      // Panggil langsung fungsi recordCatch() di smart contract baru
       const hash = await walletClient.writeContract({
         address: contractAddress,
         abi: celoCatchAbi,
@@ -127,7 +131,6 @@ export default function CeloCatchApp() {
       let caughtFishType = 1;
       let caughtXp = 10;
 
-      // Scan event logs dari receipt transaksi untuk mendeteksi hasil acak dari smart contract
       for (const log of receipt.logs) {
         try {
           const decoded = decodeEventLog({
@@ -141,7 +144,7 @@ export default function CeloCatchApp() {
             caughtXp = Number(decoded.args.xp);
           }
         } catch (e) {
-          // Log diabaikan jika bukan milik celoCatchAbi
+          // Abaikan log lain
         }
       }
 
@@ -166,7 +169,6 @@ export default function CeloCatchApp() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-400 via-sky-200 to-amber-100 text-slate-800 font-sans pb-12">
-      {/* Header */}
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-sky-100 px-4 py-3 shadow-sm">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -189,7 +191,6 @@ export default function CeloCatchApp() {
       </header>
 
       <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
-        {/* Game Stats & Action */}
         <section className="bg-white rounded-3xl p-6 shadow-xl shadow-sky-900/5 border border-sky-50/50 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-sky-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-70"></div>
 
@@ -207,7 +208,6 @@ export default function CeloCatchApp() {
             </div>
           </div>
 
-          {/* Fishing Area Visualization */}
           <div className="bg-gradient-to-b from-sky-300 to-sky-500 rounded-2xl h-44 mb-6 relative overflow-hidden flex flex-col items-center justify-center border-b-4 border-sky-600 shadow-inner">
             <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20"></div>
 
@@ -231,12 +231,11 @@ export default function CeloCatchApp() {
             ) : (
               <div className="text-center space-y-1">
                 <span className="text-4xl block opacity-80">🌊</span>
-                <p className="text-sky-100 text-xs font-medium">Lautan tenang menanti pancinganmu</p>
+                <p className="text-sky-100 text-xs font-medium">Lautan Mainnet menanti pancinganmu</p>
               </div>
             )}
           </div>
 
-          {/* Action Button */}
           <button
             onClick={castLine}
             disabled={!canCast}
@@ -249,7 +248,6 @@ export default function CeloCatchApp() {
             {loading ? "Menarik Tali Pancing..." : "Lempar Pancingan"}
           </button>
 
-          {/* Status Message */}
           <div className="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-start gap-2.5">
             <span className="text-sm mt-0.5">💡</span>
             <p className="text-xs text-slate-500 leading-relaxed font-medium">{status}</p>
@@ -269,7 +267,6 @@ export default function CeloCatchApp() {
           )}
         </section>
 
-        {/* Fish Lexicon / Guide */}
         <section className="bg-white rounded-3xl p-6 shadow-xl shadow-sky-900/5 border border-sky-50/50">
           <h3 className="font-bold text-sm text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
             <span>📚</span> Panduan Spesies Ikan
@@ -304,7 +301,6 @@ export default function CeloCatchApp() {
           </div>
         </section>
 
-        {/* Leaderboard */}
         <section className="bg-white rounded-3xl p-6 shadow-xl shadow-sky-900/5 border border-sky-50/50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-sm text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -348,10 +344,30 @@ export default function CeloCatchApp() {
         </section>
       </main>
 
-      {/* Footer Info */}
-      <footer className="text-center mt-8 px-4 text-[10px] text-slate-400 font-medium space-y-1">
-        <p>Struktur Kontrak Inti CeloCatch v2 Baru Terintegrasi</p>
-        <p className="font-mono text-[9px] opacity-70">Core: {contractAddress}</p>
+      {/* Footer Info Ekosistem Mainnet Terintegrasi */}
+      <footer className="text-center mt-8 px-4 text-[10px] text-slate-400 font-medium space-y-2 pb-8">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full mb-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <p className="font-bold">CeloCatch Mainnet Terintegrasi</p>
+        </div>
+        <div className="grid grid-cols-1 gap-1.5 font-mono text-[9px] opacity-80 max-w-xs mx-auto text-left bg-white/60 p-3.5 rounded-xl border border-sky-100 shadow-sm">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">Core Game:</span> 
+            <span className="text-slate-700">{contractAddress ? `${contractAddress.slice(0, 8)}...${contractAddress.slice(-6)}` : "Not Set"}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">Fishing Rod:</span> 
+            <span className="text-slate-700">{rodAddress ? `${rodAddress.slice(0, 8)}...${rodAddress.slice(-6)}` : "Not Set"}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">NFT Assets:</span> 
+            <span className="text-slate-700">{nftAddress ? `${nftAddress.slice(0, 8)}...${nftAddress.slice(-6)}` : "Not Set"}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-500">$CATCH Token:</span> 
+            <span className="text-slate-700">{tokenAddress ? `${tokenAddress.slice(0, 8)}...${tokenAddress.slice(-6)}` : "Not Set"}</span>
+          </div>
+        </div>
       </footer>
     </div>
   );
