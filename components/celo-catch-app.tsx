@@ -6,6 +6,8 @@ import {
   createWalletClient,
   custom,
   decodeEventLog,
+  createPublicClient,
+  http,
   type Address,
   type Hash,
 } from "viem";
@@ -19,6 +21,12 @@ import {
   injectMiniPayStyle,
   type MiniPayProvider,
 } from "@/lib/ethereum";
+
+// Client diinisialisasi di atas agar tidak menyebabkan error TypeScript "used before declaration"
+const publicClient = createPublicClient({
+  chain: appChain,
+  transport: http(rpcUrl),
+});
 
 type CatchResult = {
   fishType: number;
@@ -358,10 +366,3 @@ function readableError(error: unknown): string {
   }
   return error instanceof Error ? error.message : "Terjadi kesalahan transaksi tidak terduga.";
 }
-
-// Client Impor dummy untuk kemudahan verifikasi modul internal viem client alternatif
-import { createPublicClient, http } from "viem";
-const publicClient = createPublicClient({
-  chain: appChain,
-  transport: http(rpcUrl),
-});

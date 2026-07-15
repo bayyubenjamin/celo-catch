@@ -1,72 +1,46 @@
-import { type Address, type Chain } from "viem";
-
-export type MiniPayProvider = {
+export interface MiniPayProvider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
-};
-
-// 1. Cek apakah provider mendukung MiniPay
-export function isMiniPayProvider(provider: any): provider is MiniPayProvider {
-  return provider && typeof provider.request === "function";
+  on: (eventName: string, handler: (args: any) => void) => void;
+  removeListener: (eventName: string, handler: (args: any) => void) => void;
+  isMiniPay?: boolean;
 }
 
-// 2. Ambil provider MiniPay dari window.ethereum
-export function getMiniPayProvider(): MiniPayProvider | null {
-  if (typeof window !== "undefined" && (window as any).ethereum) {
-    const provider = (window as any).ethereum;
-    return isMiniPayProvider(provider) ? provider : null;
+export function getMiniPayProvider(): MiniPayProvider | undefined {
+  if (typeof window !== "undefined" && (window as any).ethereum?.isMiniPay) {
+    return (window as any).ethereum;
   }
-  return null;
+  return undefined;
 }
 
-// 3. Ambil alamat Wallet address pengguna
-export async function getMiniPayAddress(provider: MiniPayProvider): Promise<Address | null> {
+export async function getMiniPayAddress(
+  provider: MiniPayProvider
+): Promise<string | undefined> {
   try {
     const accounts = await provider.request({ method: "eth_requestAccounts" });
-    return accounts && accounts.length > 0 ? (accounts[0] as Address) : null;
+    return accounts?.[0];
   } catch (error) {
-    console.error("Error fetching accounts:", error);
-    return null;
+    console.error("Failed to get Minipay address", error);
+    return undefined;
   }
 }
 
-// 4. Pastikan jaringan yang terhubung sesuai (Celo / Celo Sepolia)
 export async function ensureExpectedChain(
   provider: MiniPayProvider,
-  expectedChain: Chain,
-  rpcUrl: string
-): Promise<void> {
-  const chainIdHex = `0x${expectedChain.id.toString(16)}`;
+  expectedChainId: number
+): Promise<boolean> {
   try {
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: chainIdHex }],
-    });
-  } catch (switchError: any) {
-    // Jika chain belum ada di wallet, daftarkan baru
-    if (switchError.code === 4902) {
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [
-          {
-            chainId: chainIdHex,
-            chainName: expectedChain.name,
-            rpcUrls: [rpcUrl],
-            nativeCurrency: expectedChain.nativeCurrency,
-            blockExplorerUrls: expectedChain.blockExplorers?.default.url
-              ? [expectedChain.blockExplorers.default.url]
-              : [],
-          },
-        ],
-      });
-    } else {
-      throw switchError;
-    }
+    const chainIdHex = await provider.request({ method: "eth_chainId" });
+    const chainId = parseInt(chainIdHex, 16);
+    return chainId === expectedChainId;
+  } catch (error) {
+    console.error("Failed to check chain ID", error);
+    return false;
   }
 }
 
-// 5. Injeksi style CSS khusus MiniPay agar tampilan header/layout rapi
 export function injectMiniPayStyle(): void {
-  if (typeof shadowRoot !== "undefined" && shadowRoot) {
+  // Pengecekan aman untuk shadowRoot agar tidak error TS2304 di Vercel
+  if (typeof window !== "undefined" && "shadowRoot" in window) {
     // Modifikasi lingkungan MiniPay jika diperlukan
   }
 }
