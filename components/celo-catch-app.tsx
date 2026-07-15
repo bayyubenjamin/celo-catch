@@ -65,8 +65,10 @@ export default function CeloCatchApp() {
     getMiniPayAddress(provider)
       .then((address) => {
         if (address) {
-          setAccount(address);
-          return refreshGame(address);
+          // ✅ PERBAIKAN DI SINI: Konversi tipe string menjadi `Address` milik Viem
+          const validAddress = address as Address; 
+          setAccount(validAddress);
+          return refreshGame(validAddress);
         } else {
           setStatus("Gagal mendapatkan alamat wallet MiniPay.");
         }
