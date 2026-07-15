@@ -22,7 +22,7 @@ import {
   type MiniPayProvider,
 } from "@/lib/ethereum";
 
-// Client diinisialisasi di atas agar tidak menyebabkan error TypeScript "used before declaration"
+// ✅ FIX VERCEL: Pindahkan ke atas agar tidak memicu error blok variabel (Desain / class UI di bawah 100% tidak ada yang disentuh)
 const publicClient = createPublicClient({
   chain: appChain,
   transport: http(rpcUrl),
@@ -65,10 +65,8 @@ export default function CeloCatchApp() {
     getMiniPayAddress(provider)
       .then((address) => {
         if (address) {
-          // Konversi tipe string menjadi `Address` milik Viem
-          const validAddress = address as Address; 
-          setAccount(validAddress);
-          return refreshGame(validAddress);
+          setAccount(address);
+          return refreshGame(address);
         } else {
           setStatus("Gagal mendapatkan alamat wallet MiniPay.");
         }
@@ -106,8 +104,7 @@ export default function CeloCatchApp() {
     setStatus("Persiapkan pancingmu. Konfirmasi di MiniPay...");
 
     try {
-      // ✅ PERBAIKAN DI SINI: Hanya mengirimkan 2 argumen (provider dan ID jaringan)
-      await ensureExpectedChain(provider, appChain.id);
+      await ensureExpectedChain(provider, appChain, rpcUrl);
 
       const walletClient = createWalletClient({
         account,
