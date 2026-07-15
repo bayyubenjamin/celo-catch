@@ -16,18 +16,15 @@ export type GameSnapshot = {
 
 export const publicClient = createPublicClient({
   chain: appChain,
-  transport: http(rpcUrl, { timeout: 12_000 }),
+  transport: http(rpcUrl, { timeout: 20_000 }), // Timeout diperpanjang biar makin stabil
 });
 
 export async function loadGameSnapshot(player?: Address): Promise<GameSnapshot> {
   if (!contractAddress) return { totalCasts: 0, canCast: false, leaders: [] };
 
   const leaders = await loadLeaderboard(publicClient);
-  
-  // Hitung total cast keseluruhan dari seluruh log event leaderboard
   const totalCasts = leaders.reduce((sum, leader) => sum + leader.casts, 0);
 
-  // Kontrak baru tidak membatasi cast (memancing), jadi selalu return true
   return { totalCasts, canCast: true, leaders };
 }
 
@@ -35,33 +32,44 @@ async function loadLeaderboard(client: typeof publicClient): Promise<Leaderboard
   if (!contractAddress) return [];
 
   const latestBlock = await client.getBlockNumber();
-  if (contractStartBlock > latestBlock) return [];
+  
+  // LOGIKA SMART FALLBACK:
+  // Kalau tidak ada START_BLOCK (0), kita mulai dari 100.000 blok terakhir saja
+  // Biar gak timeout/lelet, tapi leaderboard tetap muncul.
+  let fromBlock = contractStartBlock;
+  if (fromBlock === 0n) {
+    fromBlock = latestBlock > 100000n ? latestBlock - 100000n : 0n;
+  }
 
   const chunkSize = 25_000n;
   const aggregate = new Map<string, LeaderboardEntry>();
 
-  for (let fromBlock = contractStartBlock; fromBlock <= latestBlock; fromBlock += chunkSize) {
-    const toBlock = fromBlock + chunkSize - 1n > latestBlock
+  for (let currentBlock = fromBlock; currentBlock <= latestBlock; currentBlock += chunkSize) {
+    const toBlock = currentBlock + chunkSize - 1n > latestBlock
       ? latestBlock
-      : fromBlock + chunkSize - 1n;
+      : currentBlock + chunkSize - 1n;
       
-    const logs = await client.getLogs({
-      address: contractAddress,
-      event: fishCaughtEvent,
-      fromBlock,
-      toBlock,
-    });
+    try {
+      const logs = await client.getLogs({
+        address: contractAddress,
+        event: fishCaughtEvent,
+        fromBlock: currentBlock,
+        toBlock,
+      });
 
-    for (const log of logs) {
-      const player = log.args.player;
-      const xp = log.args.xp;
-      if (!player || xp === undefined) continue;
+      for (const log of logs) {
+        const player = log.args.player;
+        const xp = log.args.xp;
+        if (!player || xp === undefined) continue;
 
-      const key = player.toLowerCase();
-      const current = aggregate.get(key) ?? { address: player, xp: 0, casts: 0 };
-      current.xp += Number(xp);
-      current.casts += 1; // Menghitung setiap event log sebagai 1 cast
-      aggregate.set(key, current);
+        const key = player.toLowerCase();
+        const current = aggregate.get(key) ?? { address: player, xp: 0, casts: 0 };
+        current.xp += Number(xp);
+        current.casts += 1;
+        aggregate.set(key, current);
+      }
+    } catch (e) {
+      console.warn("Skip chunk karena RPC limit:", e);
     }
   }
 
