@@ -24,7 +24,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="antialiased selection:bg-sky-200">{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
