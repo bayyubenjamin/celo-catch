@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BaseError, createWalletClient, custom, type Address, type Hash } from "viem";
+import {
+  BaseError,
+  createWalletClient,
+  custom,
+  type Address,
+  type Hash,
+} from "viem";
 import { appChain, contractAddress, isMainnet, rpcUrl } from "@/lib/config";
 import { loadGameSnapshot, publicClient, type LeaderboardEntry } from "@/lib/celo";
 import { celoCatchAbi } from "@/lib/contract";
@@ -15,144 +21,439 @@ import {
 
 type WalletPhase = "checking" | "ready" | "missing" | "error";
 
+type CatchResult = {
+  fishType: number;
+  name: string;
+  emoji: string;
+  xp: number;
+  nonce: string;
+  day: number;
+  deadline: number;
+  signature: `0x${string}`;
+};
+
+const fishGuide = [
+  { emoji: "🐟", name: "Tiny", xp: 10 },
+  { emoji: "🐠", name: "Blue", xp: 25 },
+  { emoji: "🐡", name: "Puffer", xp: 75 },
+  { emoji: "✨", name: "Golden", xp: 150 },
+  { emoji: "🦈", name: "Shark", xp: 350 },
+  { emoji: "🐋", name: "Whale", xp: 1000 },
+];
+
 export default function CeloCatchApp() {
   const providerRef = useRef<Eip1193Provider | null>(null);
   const [walletPhase, setWalletPhase] = useState<WalletPhase>("checking");
   const [account, setAccount] = useState<Address | null>(null);
   const [miniPay, setMiniPay] = useState(false);
+  const [status, setStatus] = useState("Checking your MiniPay wallet…");
   const [loading, setLoading] = useState(false);
-  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [canCast, setCanCast] = useState(false);
   const [totalCasts, setTotalCasts] = useState(0);
+  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+  const [lastCatch, setLastCatch] = useState<CatchResult | null>(null);
+  const [transactionHash, setTransactionHash] = useState<Hash | null>(null);
 
-  // Contract specific state
   const configured = contractAddress !== null;
+  const explorerUrl = appChain.blockExplorers?.default.url;
+
+  const shortAccount = useMemo(
+    () => (account ? `${account.slice(0, 6)}…${account.slice(-4)}` : "—"),
+    [account],
+  );
+
+  // ==========================================
+  // FUNGSI CONNECT WALLET MANUAL (BARU)
+  // ==========================================
+  const connectWallet = async () => {
+    if (typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+      try {
+        // Meminta user untuk memilih/menyetujui koneksi wallet
+        const accounts = (await window.ethereum.request({
+          method: "eth_requestAccounts",
+        })) as Address[];
+
+        if (accounts && accounts.length > 0) {
+          const selectedAccount = accounts[0];
+          setAccount(selectedAccount);
+          setWalletPhase("ready");
+          setStatus(
+            configured
+              ? "Your daily cast is ready."
+              : "Wallet ready. The contract still needs to be deployed."
+          );
+          await refreshGame(selectedAccount);
+        }
+      } catch (error) {
+        console.error("User menolak koneksi atau terjadi error:", error);
+      }
+    } else {
+      // Fallback jika dibuka di iOS Safari atau browser tanpa wallet
+      alert(
+        "Wallet tidak terdeteksi! \n\nPengguna iOS: Silakan buka link web ini langsung dari dalam browser aplikasi Valora, MetaMask, atau Trust Wallet Anda."
+      );
+    }
+  };
+  // ==========================================
 
   const refreshGame = useCallback(async (player?: Address | null) => {
-    if (!configured) return;
+    if (!configured) {
+      setTotalCasts(0);
+      setCanCast(false);
+      setLeaders([]);
+      return;
+    }
+
+    setRefreshing(true);
     try {
       const snapshot = await loadGameSnapshot(player ?? undefined);
       setTotalCasts(snapshot.totalCasts);
+      setCanCast(snapshot.canCast);
       setLeaders(snapshot.leaders);
     } catch (error) {
-      console.error("Refresh failed", error);
+      console.error(error);
+      setStatus("Celo data is temporarily unavailable. Pull down and try again.");
+    } finally {
+      setRefreshing(false);
     }
   }, [configured]);
 
-  const connectWallet = useCallback(async () => {
+  const connectInjectedWallet = useCallback(async () => {
     const provider = getInjectedProvider();
     providerRef.current = provider;
+
     if (!provider) {
       setWalletPhase("missing");
+      setStatus("Open Celo Catch from the MiniPay app to start fishing.");
       return;
     }
+
     setMiniPay(isMiniPayProvider(provider));
+    setWalletPhase("checking");
+
     try {
       const address = await requestPrimaryAccount(provider);
       await ensureExpectedChain(provider, appChain, rpcUrl);
       setAccount(address);
       setWalletPhase("ready");
+      setStatus(
+        configured
+          ? "Your daily cast is ready."
+          : "Wallet ready. The contract still needs to be deployed.",
+      );
       await refreshGame(address);
-    } catch (e) {
+    } catch (error) {
+      console.error(error);
+      setAccount(null);
       setWalletPhase("error");
+      setStatus(readableError(error));
     }
-  }, [refreshGame]);
+  }, [configured, refreshGame]);
 
-  useEffect(() => { void connectWallet(); }, [connectWallet]);
+  useEffect(() => {
+    void connectInjectedWallet();
+  }, [connectInjectedWallet]);
+
+  useEffect(() => {
+    const provider = providerRef.current;
+    if (!provider?.on) return;
+
+    const onAccountsChanged = () => void connectInjectedWallet();
+    const onChainChanged = () => void connectInjectedWallet();
+
+    provider.on("accountsChanged", onAccountsChanged);
+    provider.on("chainChanged", onChainChanged);
+
+    return () => {
+      provider.removeListener?.("accountsChanged", onAccountsChanged);
+      provider.removeListener?.("chainChanged", onChainChanged);
+    };
+  }, [connectInjectedWallet]);
+
+  async function castLine() {
+    const provider = providerRef.current;
+    if (!provider || !account || !contractAddress || !canCast) return;
+
+    setLoading(true);
+    setLastCatch(null);
+    setTransactionHash(null);
+    setStatus("Finding today’s catch…");
+
+    try {
+      await ensureExpectedChain(provider, appChain, rpcUrl);
+
+      const response = await fetch("/api/cast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account }),
+      });
+      const payload: unknown = await response.json();
+
+      if (!response.ok || !isCatchResult(payload)) {
+        const message = isErrorPayload(payload)
+          ? payload.error
+          : "The catch service returned an invalid response.";
+        throw new Error(message);
+      }
+
+      setStatus("Catch found. Confirm the transaction in MiniPay.");
+
+      const walletClient = createWalletClient({
+        account,
+        chain: appChain,
+        transport: custom(provider),
+      });
+
+      const hash = await walletClient.writeContract({
+        address: contractAddress,
+        abi: celoCatchAbi,
+        functionName: "recordCatch",
+        args: [
+          payload.fishType,
+          BigInt(payload.xp),
+          BigInt(payload.nonce),
+          BigInt(payload.day),
+          BigInt(payload.deadline),
+          payload.signature,
+        ],
+      });
+
+      setTransactionHash(hash);
+      setStatus("Recording your catch on Celo…");
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      setLastCatch(payload);
+      setStatus("Catch recorded. Come back tomorrow for another cast.");
+      await refreshGame(account);
+    } catch (error) {
+      console.error(error);
+      setStatus(readableError(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const castDisabled =
+    loading || walletPhase !== "ready" || !account || !configured || !canCast;
 
   return (
-    <main className="app-shell min-h-screen bg-neutral-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-8">
+    <main className="app-shell">
+      <div className="page-wrap">
         
-        {/* Header */}
-        <header className="flex justify-between items-center border-b pb-6">
+        {/* TOMBOL CONNECT MANUAL (BARU) */}
+        <div className="flex justify-end mb-4">
+          <button
+            type="button"
+            onClick={connectWallet}
+            className="bg-[#1f7a72] hover:bg-[#165d56] text-white font-bold py-2 px-5 rounded-full shadow-md transition-all duration-300 text-sm border-2 border-[#142321]"
+          >
+            {account
+              ? `${account.slice(0, 6)}…${account.slice(-4)}`
+              : "Connect Wallet"}
+          </button>
+        </div>
+
+        <header className="topbar">
+          <div className="brand-mark" aria-hidden="true">C</div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Celo Catch</h1>
-            <p className="text-sm text-neutral-500">Professional Fishing Dashboard</p>
+            <p className="eyebrow">A tiny daily game on Celo</p>
+            <h1>Celo Catch</h1>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${miniPay ? "bg-green-100 text-green-700" : "bg-neutral-200"}`}>
-            {miniPay ? "MiniPay Active" : appChain.name}
+          <span className={`network-pill ${miniPay ? "is-minipay" : ""}`}>
+            {miniPay ? "MiniPay" : appChain.name}
           </span>
         </header>
 
-        {/* Stats Grid */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Total Casts" value={totalCasts.toString()} />
-          <StatCard label="Season" value="Genesis" />
-          <StatCard label="Status" value={walletPhase === "ready" ? "Active" : "Locked"} />
-          <StatCard label="Network" value={isMainnet ? "Mainnet" : "Sepolia"} />
+        <section className="pond-card" aria-labelledby="today-heading">
+          <div className="pond-copy">
+            <p className="section-kicker">Genesis pond</p>
+            <h2 id="today-heading">One cast. One catch. Every day.</h2>
+            <p>
+              Find a fish, earn XP, and leave a small onchain trail without the usual Web3 clutter.
+            </p>
+          </div>
+          <div className="pond-scene" aria-hidden="true">
+            <span className="sun-dot" />
+            <span className="fishing-line" />
+            <span className="hook">⌁</span>
+            <span className="fish fish-one">🐟</span>
+            <span className="fish fish-two">🐠</span>
+            <span className="water-line water-one" />
+            <span className="water-line water-two" />
+          </div>
         </section>
 
-        {/* Main Action Area */}
-        <section className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Daily Operations</h2>
-          <button 
-            className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-neutral-800 transition-colors disabled:opacity-50"
-            disabled={walletPhase !== "ready"}
-            onClick={() => { /* Implement your cast function here */ }}
+        {!configured && (
+          <aside className="setup-note" role="note">
+            <strong>Preview mode</strong>
+            <span>Deploy the contract and add its address to enable live casts.</span>
+          </aside>
+        )}
+
+        <section className="action-card" aria-labelledby="cast-heading">
+          <div className="card-heading-row">
+            <div>
+              <p className="section-kicker">Today</p>
+              <h2 id="cast-heading">Your daily cast</h2>
+            </div>
+            <span className={`availability ${canCast ? "available" : ""}`}>
+              {configured ? (canCast ? "Available" : "Used") : "Setup pending"}
+            </span>
+          </div>
+
+          <dl className="wallet-summary">
+            <div>
+              <dt>Wallet</dt>
+              <dd>{walletPhase === "checking" ? "Connecting…" : shortAccount}</dd>
+            </div>
+            <div>
+              <dt>Network</dt>
+              <dd>{isMainnet ? "Celo Mainnet" : "Celo Sepolia"}</dd>
+            </div>
+            <div>
+              <dt>All-time casts</dt>
+              <dd>{refreshing ? "…" : totalCasts.toLocaleString()}</dd>
+            </div>
+          </dl>
+
+          <button
+            type="button"
+            className="cast-button"
+            onClick={castLine}
+            disabled={castDisabled}
           >
-            {loading ? "Casting..." : "Initiate Daily Cast"}
+            <span aria-hidden="true">🎣</span>
+            <span>{loading ? "Casting…" : canCast ? "Cast today’s line" : "Come back tomorrow"}</span>
           </button>
+
+          <p className="status-copy" role="status" aria-live="polite">{status}</p>
+
+          {transactionHash && explorerUrl && (
+            <a
+              className="transaction-link"
+              href={`${explorerUrl}/tx/${transactionHash}`}
+            >
+              View transaction
+            </a>
+          )}
         </section>
 
-        {/* Professional Leaderboard */}
-        <section className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-neutral-100">
-            <h2 className="text-lg font-semibold">Global Leaderboard</h2>
+        {lastCatch && (
+          <section className="catch-card" aria-label="Latest catch">
+            <div className="catch-emoji" aria-hidden="true">{lastCatch.emoji}</div>
+            <div>
+              <p className="section-kicker">Caught today</p>
+              <h2>{lastCatch.name}</h2>
+              <p className="catch-xp">+{lastCatch.xp} XP</p>
+            </div>
+          </section>
+        )}
+
+        <section className="leaderboard-card" aria-labelledby="leaderboard-heading">
+          <div className="card-heading-row">
+            <div>
+              <p className="section-kicker">Genesis season</p>
+              <h2 id="leaderboard-heading">Top fishers</h2>
+            </div>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void refreshGame(account)}
+              disabled={refreshing || !configured}
+            >
+              {refreshing ? "Refreshing" : "Refresh"}
+            </button>
           </div>
-          <table className="w-full text-left">
-            <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase">
-              <tr>
-                <th className="px-6 py-3">Rank</th>
-                <th className="px-6 py-3">Address</th>
-                <th className="px-6 py-3 text-right">XP Earned</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {leaders.length > 0 ? leaders.map((l, i) => (
-                <tr key={l.address} className="hover:bg-neutral-50">
-                  <td className="px-6 py-4 font-medium">#{i + 1}</td>
-                  <td className="px-6 py-4 font-mono text-sm">{l.address.slice(0, 8)}...</td>
-                  <td className="px-6 py-4 text-right font-semibold">{l.xp.toLocaleString()}</td>
-                </tr>
-              )) : (
-                <tr><td colSpan={3} className="px-6 py-8 text-center text-neutral-400">No data available</td></tr>
-              )}
-            </tbody>
-          </table>
+
+          <div className="leader-list">
+            {leaders.length === 0 ? (
+              <div className="empty-state">
+                <span aria-hidden="true">🌊</span>
+                <p>{configured ? "No catches yet. The pond is still quiet." : "Leaderboard appears after contract deployment."}</p>
+              </div>
+            ) : (
+              leaders.map((leader, index) => (
+                <LeaderRow key={leader.address} leader={leader} rank={index + 1} />
+              ))
+            )}
+          </div>
         </section>
 
-        {/* Detailed Contract Inspector */}
-        <section className="bg-neutral-900 text-neutral-300 p-6 rounded-2xl">
-          <h2 className="text-white font-semibold mb-4">Contract State Explorer</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
-            <div className="flex justify-between border-b border-neutral-800 py-2">
-              <span>Core Address</span>
-              <span className="text-white">{contractAddress?.slice(0, 10)}...</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-800 py-2">
-              <span>Rod Logic</span>
-              <span className="text-white">Active</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-800 py-2">
-              <span>CeloCatchNFT</span>
-              <span className="text-white">Minting Enabled</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-800 py-2">
-              <span>Fishing Yield</span>
-              <span className="text-white">7.5% APY</span>
-            </div>
+        <section className="guide-card" aria-labelledby="guide-heading">
+          <p className="section-kicker">Pond guide</p>
+          <h2 id="guide-heading">What might bite?</h2>
+          <div className="fish-grid">
+            {fishGuide.map((fish) => (
+              <div className="fish-tile" key={fish.name}>
+                <span aria-hidden="true">{fish.emoji}</span>
+                <div>
+                  <strong>{fish.name}</strong>
+                  <small>{fish.xp} XP</small>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
+
+        <footer>
+          <span>Built on Celo</span>
+          <span aria-hidden="true">•</span>
+          <span>Designed for MiniPay</span>
+        </footer>
       </div>
     </main>
   );
 }
 
-function StatCard({ label, value }: { label: string, value: string }) {
+function LeaderRow({ leader, rank }: { leader: LeaderboardEntry; rank: number }) {
+  const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+
   return (
-    <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
-      <p className="text-[10px] uppercase text-neutral-500 font-bold tracking-wider">{label}</p>
-      <p className="text-xl font-semibold mt-1">{value}</p>
+    <div className="leader-row">
+      <span className="rank" aria-label={`Rank ${rank}`}>{medal}</span>
+      <div className="leader-address">
+        <strong>{leader.address.slice(0, 6)}…{leader.address.slice(-4)}</strong>
+        <small>{leader.casts} {leader.casts === 1 ? "cast" : "casts"}</small>
+      </div>
+      <strong className="leader-xp">{leader.xp.toLocaleString()} XP</strong>
     </div>
   );
+}
+
+function isCatchResult(value: unknown): value is CatchResult {
+  if (typeof value !== "object" || value === null) return false;
+  const item = value as Record<string, unknown>;
+
+  return (
+    typeof item.fishType === "number" &&
+    typeof item.name === "string" &&
+    typeof item.emoji === "string" &&
+    typeof item.xp === "number" &&
+    typeof item.nonce === "string" &&
+    typeof item.day === "number" &&
+    typeof item.deadline === "number" &&
+    typeof item.signature === "string" &&
+    item.signature.startsWith("0x")
+  );
+}
+
+function isErrorPayload(value: unknown): value is { error: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "error" in value &&
+    typeof value.error === "string"
+  );
+}
+
+function readableError(error: unknown): string {
+  if (error instanceof BaseError) return error.shortMessage;
+  if (error instanceof Error) {
+    if (/user rejected|denied|cancelled/i.test(error.message)) {
+      return "Transaction cancelled. Your daily cast is still available.";
+    }
+    return error.message;
+  }
+  return "Something went wrong. Please try again.";
 }
