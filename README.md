@@ -1,271 +1,341 @@
-# 🎣 Celo Catch
+# Celo Catch
 
-**Celo Catch** is a **MiniPay-native casual fishing game** built on the **Celo blockchain**.
+![Celo Ecosystem](https://img.shields.io/badge/ecosystem-Celo-35D07F)
+![Celo Mainnet](https://img.shields.io/badge/Celo%20Mainnet-42220-476520)
+![Celo Sepolia](https://img.shields.io/badge/Celo%20Sepolia-11142220-476520)
+![MiniPay](https://img.shields.io/badge/wallet-MiniPay-5A31F4)
+![Version](https://img.shields.io/badge/version-1.0.0-1F2937)
 
-Users connect their wallet, cast once per day, catch random fish, earn XP, and climb the Genesis leaderboard. Every catch is recorded onchain through a Celo smart contract, creating transparent proof of participation.
+**Celo Catch is a Celo-native, MiniPay-first consumer application.** It is a daily onchain fishing game designed specifically for Celo Mainnet and Celo Sepolia. The repository is not a generic multi-chain template.
 
-The goal is simple: make onchain activity feel like a fun mobile game, not a complicated crypto transaction.
+The product turns a simple mobile game loop into a lightweight onchain experience: open the app, receive one daily catch, earn XP, and build a public participation history.
 
----
+> **Current release: Version 1.0.0 — MiniPay Foundation**
+>
+> Version 1 delivers the complete Celo application foundation, MiniPay-native wallet flow, contract source, security model, automated tests, and production-ready interface. The smart contract is intentionally **not deployed in Version 1**. Celo Sepolia deployment and live transaction activation are planned for Version 1.1.
 
-## 🌍 Built for the Celo Ecosystem
+## Celo ecosystem identity
 
-Celo Catch is designed for:
+| Classification | Value |
+|---|---|
+| Primary ecosystem | **Celo** |
+| Blockchain namespace | `eip155` |
+| Production network | Celo Mainnet |
+| Mainnet chain ID | `42220` |
+| Mainnet CAIP-2 | `eip155:42220` |
+| Development network | Celo Sepolia |
+| Testnet chain ID | `11142220` |
+| Testnet CAIP-2 | `eip155:11142220` |
+| Primary wallet runtime | MiniPay |
+| Transaction library | Viem |
+| Smart contract language | Solidity |
+| Multi-chain project | **No** |
+| Contract deployment | Planned for Version 1.1 |
 
-- **Celo Mainnet**
-- **MiniPay users**
-- **Mobile-first Web3 onboarding**
-- **Emerging-market communities**
-- **Lightweight onchain participation**
-- **Casual consumer crypto apps**
+### Machine-readable project metadata
 
-Celo Catch turns daily gameplay into verifiable onchain activity.
+Repository indexers and automated classifiers can read the same classification from:
 
----
+- [`project.json`](project.json) — project, ecosystem, integration, and evidence manifest;
+- [`celo.json`](celo.json) — Celo release and network metadata;
+- [`.github/PROJECT_METADATA.yml`](.github/PROJECT_METADATA.yml) — repository-level classification;
+- [`docs/CELO_ECOSYSTEM.md`](docs/CELO_ECOSYSTEM.md) — human-readable ecosystem evidence map.
 
-## 📱 MiniPay-Native Experience
+### Technical evidence
 
-Celo Catch is designed to work as a simple mobile-first dApp experience for MiniPay-style users.
+| Celo evidence | Source |
+|---|---|
+| Celo Mainnet and Celo Sepolia identity | [`lib/celo-networks.ts`](lib/celo-networks.ts) |
+| Runtime Celo chain selection | [`lib/config.ts`](lib/config.ts) |
+| MiniPay injected-provider integration | [`lib/ethereum.ts`](lib/ethereum.ts) |
+| Celo RPC reads and event queries | [`lib/celo.ts`](lib/celo.ts) |
+| Celo smart contract source | [`contracts/CeloCatch.sol`](contracts/CeloCatch.sol) |
+| Celo chain identity tests | [`tests/celo-ecosystem.test.ts`](tests/celo-ecosystem.test.ts) |
+| MiniPay provider simulation | [`tests/ethereum.test.ts`](tests/ethereum.test.ts) |
+| Signature compatibility verification | [`tests/signature.test.ts`](tests/signature.test.ts) |
+| Full CI verification | [`.github/workflows/verify.yml`](.github/workflows/verify.yml) |
 
-The app focuses on:
+## Release status
 
-- Simple wallet connection
-- Small mobile screen layout
-- Low-friction daily gameplay
-- Lightweight Celo transactions
-- Clear user feedback after every cast
-- Onchain proof of participation
+| Area | Version 1 status |
+|---|---|
+| Celo-specific application architecture | Ready |
+| MiniPay wallet integration | Ready and automated |
+| Mobile UI/UX | Ready |
+| Daily catch engine | Ready |
+| Server-signed catch flow | Ready |
+| Solidity contract | Implemented and compile-tested |
+| Automated verification | Passing |
+| Celo Sepolia contract | Not deployed in Version 1 |
+| Live MiniPay transaction | Planned for Version 1.1 |
+| Celo Mainnet launch | Planned after testnet validation |
 
----
+Version 1 runs safely in **preview mode** when no contract address is configured. The interface can be reviewed and tested without presenting inactive blockchain functionality as live.
 
-## ✨ Core Features
+## Version 1 scope
 
-- 🎣 Daily fishing cast
-- 🐟 Random fish rarity
-- ⭐ XP scoring system
-- 🏆 Genesis leaderboard
-- 🔐 Server-signed catch result
-- ⛓️ Onchain catch record
-- 📱 Mobile-first UI
-- 🌍 Celo Mainnet support
-- 🧾 Transparent event-based activity tracking
+### Included
 
----
+- Celo Mainnet and Celo Sepolia network definitions
+- MiniPay-aware injected wallet detection
+- Automatic account connection without a generic wallet-connect screen
+- Viem-based transaction architecture
+- Celo Sepolia as the default development network
+- Mobile-first interface designed for the MiniPay in-app browser
+- Deterministic daily catch generation
+- Server-signed catch payloads
+- Replay-resistant nonce design
+- One-cast-per-day contract logic
+- Event-based leaderboard architecture
+- Strict TypeScript validation
+- Celo network identity tests
+- MiniPay wallet-provider tests
+- Solidity compilation checks
+- Production Next.js build verification
+- GitHub Actions verification workflow
 
-## 🎮 Game Loop
+### Intentionally deferred
 
-1. User opens Celo Catch on mobile
-2. User connects wallet
-3. User taps **Cast Line**
-4. Backend generates a signed random fish result
-5. User confirms the Celo transaction
-6. Smart contract verifies the signature
-7. Catch is recorded onchain
-8. XP updates the Genesis leaderboard
+The following items are not part of Version 1.0.0:
 
----
+- deployment of `CeloCatch.sol`;
+- public Celo Sepolia contract address;
+- live MiniPay transaction confirmation;
+- explorer-verified `FishCaught` events;
+- production RPC infrastructure;
+- Celo Mainnet deployment.
 
-## 🐠 Fish Rarity
+These items are release work, not missing application architecture. They are scheduled for the next version after the Version 1 foundation is reviewed and accepted.
 
-| Fish | XP |
-|---|---:|
-| Tiny Fish | 10 XP |
-| Blue Fish | 25 XP |
-| Puffer Fish | 75 XP |
-| Golden Fish | 150 XP |
-| Shark | 350 XP |
-| Whale Catch | 1000 XP |
-| Empty Hook | 0 XP |
+## Product principles
 
----
+Celo Catch is designed around four principles:
 
-## 🧠 Why Celo Catch?
+1. **Celo native** — network configuration, wallet behavior, contract flow, and testing are designed for Celo.
+2. **Mobile first** — the primary environment is MiniPay, not a desktop wallet dashboard.
+3. **Low friction** — users should not need to understand bridges, gas markets, or DeFi terminology.
+4. **Verifiable gameplay** — valid catches can be recorded and independently verified on Celo.
 
-Most onchain apps feel like finance tools.
+Version 1 contains no token launch, guaranteed reward, or financial return claim.
 
-Celo Catch makes onchain activity feel like a daily mobile game.
+## How the game works
 
-Instead of asking users to understand complex Web3 flows, the app gives them a familiar loop:
+When blockchain activation is enabled in Version 1.1, the intended flow is:
 
-> Cast daily → catch fish → earn XP → climb leaderboard → build onchain proof.
+1. The player opens Celo Catch inside MiniPay.
+2. The injected MiniPay account is detected automatically.
+3. The application verifies the configured Celo network.
+4. The server generates the player's deterministic catch for the current UTC day.
+5. The server signs a payload bound to the Celo contract, chain, player, fish, XP, nonce, day, and deadline.
+6. The player confirms the transaction in MiniPay.
+7. The contract verifies the signature and daily eligibility.
+8. The catch is emitted through `FishCaught` and added to the leaderboard history.
 
-This makes Celo Catch useful for:
+In Version 1.0.0, the application stops before the live transaction stage unless a valid Celo deployment configuration is supplied.
 
-- User onboarding
-- Daily retention
-- Community campaigns
-- Onchain engagement
-- MiniPay consumer experiments
-- Lightweight proof-of-participation
+## MiniPay-native architecture
 
----
+The frontend uses MiniPay's injected EIP-1193 provider through `window.ethereum`.
 
-## 🔐 Smart Contract
+The application:
 
-The Celo Catch smart contract verifies signed catch results and records valid catches onchain.
+- detects the MiniPay environment using `isMiniPay`;
+- requests the already-injected account automatically;
+- avoids displaying an unnecessary **Connect Wallet** button inside MiniPay;
+- uses Viem for wallet clients and contract writes;
+- does not force MiniPay to switch networks;
+- provides clear instructions when MiniPay testnet settings do not match Celo Sepolia;
+- reacts to account and network changes;
+- supports safe-area insets and small mobile viewports;
+- provides explicit loading, error, empty, preview, and transaction states.
 
-### Core Function
+## Celo network architecture
 
-```solidity
-function recordCatch(
-    uint8 fishType,
-    uint256 xp,
-    uint256 nonce,
-    uint256 deadline,
-    bytes calldata signature
-) external;
+`lib/celo-networks.ts` is the canonical application-level declaration of ecosystem identity.
 
-Event
-event FishCaught(
-    address indexed player,
-    uint8 fishType,
-    uint256 xp,
-    uint256 day,
-    uint256 nonce,
-    uint256 timestamp
-);
+The application supports:
 
-The frontend reads FishCaught events to build the leaderboard.
+```text
+Celo Mainnet   eip155:42220
+Celo Sepolia   eip155:11142220
+```
 
-⛓️ Network
-Celo Mainnet
-Field	Value
-Network	Celo Mainnet
-Chain ID	42220
-Currency	CELO
-RPC	https://forno.celo.org
-Explorer	https://celoscan.io
-Alfajores Testnet
-Field	Value
-Network	Celo Alfajores
-Chain ID	44787
-Currency	CELO
-RPC	https://alfajores-forno.celo-testnet.org
-Explorer	https://alfajores.celoscan.io
-📍 Deployment
-Smart Contract
-Network	Contract
-Celo Mainnet	PASTE_MAINNET_CONTRACT_ADDRESS_HERE
-Alfajores	PASTE_ALFAJORES_CONTRACT_ADDRESS_HERE
-Live App
-PASTE_VERCEL_OR_DOMAIN_URL_HERE
-🧰 Tech Stack
-Next.js
-TypeScript
-Tailwind CSS
-Ethers.js
-Solidity
-Remix IDE
-Celo Mainnet
-MiniPay/mobile-first wallet flow
-⚙️ Environment Variables
+An unrelated EVM chain is not treated as a supported production target. Development falls back to Celo Sepolia rather than a generic Ethereum network.
 
-Create .env.local:
+## Security model
 
-SERVER_SIGNER_PRIVATE_KEY=0xYOUR_SERVER_SIGNER_PRIVATE_KEY
+### Deterministic daily result
 
-NEXT_PUBLIC_CHAIN_ID=42220
-NEXT_PUBLIC_RPC_URL=https://forno.celo.org
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xYOUR_CELO_CONTRACT_ADDRESS
-NEXT_PUBLIC_START_BLOCK=0
+A wallet receives the same fish and nonce for the same UTC day. Repeated requests cannot be used to reroll the API until a rare fish appears.
 
-For Alfajores:
+The result is derived from:
 
-NEXT_PUBLIC_CHAIN_ID=44787
-NEXT_PUBLIC_RPC_URL=https://alfajores-forno.celo-testnet.org
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xYOUR_ALFAJORES_CONTRACT_ADDRESS
-🚀 Run Locally
+- Celo chain ID;
+- Celo contract address;
+- player address;
+- UTC day;
+- private server randomness secret.
+
+### Signed payload
+
+Each catch signature binds:
+
+- contract address;
+- Celo chain ID;
+- player address;
+- fish type;
+- XP amount;
+- nonce;
+- UTC day;
+- expiration deadline.
+
+### Contract enforcement
+
+`contracts/CeloCatch.sol` enforces:
+
+- one cast per wallet per UTC day;
+- fish-to-XP validation;
+- signature expiration;
+- nonce replay protection;
+- server signer verification;
+- low-`s` ECDSA validation;
+- owner-controlled signer rotation.
+
+## Technology
+
+- Celo Mainnet and Celo Sepolia
+- MiniPay
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
+- Viem
+- Solidity
+- Vitest
+- GitHub Actions
+
+## Repository structure
+
+```text
+app/                           Next.js routes, metadata, and API endpoint
+components/                    MiniPay-first application interface
+contracts/CeloCatch.sol        Contract prepared for Celo deployment
+lib/celo-networks.ts           Canonical Celo ecosystem identity
+lib/config.ts                  Runtime Celo chain configuration
+lib/ethereum.ts                MiniPay injected-provider handling
+lib/celo.ts                    Celo RPC reads and event aggregation
+scripts/                       Contract and MiniPay verification scripts
+tests/                         Celo, provider, catch, and signature tests
+project.json                   Machine-readable project manifest
+celo.json                      Celo-specific release metadata
+docs/CELO_ECOSYSTEM.md         Celo evidence and classification map
+docs/ROADMAP.md                Release sequence and acceptance criteria
+CHANGELOG.md                   Version history
+```
+
+## Local development
+
+Requirements:
+
+- Node.js 20.9 or newer
+- npm
+
+```bash
 npm install
+cp .env.example .env.local
 npm run dev
+```
 
-Open:
+Open `http://localhost:3000`.
 
-http://localhost:3000
-🧪 Smart Contract Deployment
+Without a contract address, the application displays Version 1 preview mode. This is the expected state for the current release.
 
-The smart contract can be deployed using Remix.
+## Environment configuration
 
-Open Remix
-Create CeloCatch.sol
-Compile with Solidity 0.8.24
-Connect wallet to Celo Mainnet or Alfajores
-Deploy with serverSigner address
-Copy the deployed contract address
-Add it to .env.local
-📊 Onchain Activity Model
+```dotenv
+NEXT_PUBLIC_CHAIN_ID=11142220
+NEXT_PUBLIC_RPC_URL=https://forno.celo-sepolia.celo-testnet.org
+NEXT_PUBLIC_CONTRACT_ADDRESS=
+NEXT_PUBLIC_START_BLOCK=0
+SERVER_SIGNER_PRIVATE_KEY=
+SERVER_RANDOMNESS_SECRET=
+```
 
-Celo Catch creates simple onchain activity through daily gameplay.
+For Version 1.0.0, contract and signer values may remain empty.
 
-Each valid cast emits a FishCaught event containing:
+For Version 1.1.0, the Celo contract address, deployment block, signer key, and randomness secret must be configured before live testing.
 
-Player wallet
-Fish type
-XP
-Day
-Nonce
-Timestamp
+Never expose server secrets using the `NEXT_PUBLIC_` prefix.
 
-This makes gameplay transparent, verifiable, and easy to index.
+## Verification
 
-🏆 Genesis Season
+Run the complete verification pipeline:
 
-Celo Catch starts with a Genesis Season.
+```bash
+npm run verify
+```
 
-Early users can:
+The command performs:
 
-Cast daily
-Collect fish
-Earn XP
-Climb the leaderboard
-Build public onchain participation history
+- strict TypeScript checking;
+- deterministic catch tests;
+- Celo ecosystem identity tests;
+- MiniPay provider simulation;
+- server-signature compatibility tests;
+- Solidity contract compilation;
+- MiniPay readiness checks;
+- production Next.js build.
 
-No token. No promise. Every catch is recorded onchain.
+GitHub Actions executes the same pipeline for branch updates and pull requests.
 
-🗺️ Roadmap
-Phase 1 — MVP
- Mobile-first UI
- Wallet connection
- Daily cast
- Signed random catch result
- Onchain catch record
- Leaderboard from events
-Phase 2 — MiniPay Polish
- MiniPay-specific UX improvements
- Share catch result
- Better mobile animations
- Public player profile
- Genesis badge design
-Phase 3 — Game Expansion
- Treasure chest
- Frenzy mode
- Weekly leaderboard
- Referral crew system
- Seasonal snapshots
-🧩 Repository Topics
+## Version plan
 
-Recommended GitHub topics:
+### Version 1.0.0 — MiniPay Foundation
 
-celo
-minipay
-celo-blockchain
-celo-dapp
-mobile-first
-onchain-game
-web3-game
-nextjs
-typescript
-solidity
-ethers
-remix
-consumer-crypto
-📌 Project Positioning
+Current release.
 
-Celo Catch is not a DeFi app.
+- Celo-specific application architecture;
+- professional mobile UI/UX;
+- MiniPay-native wallet behavior;
+- security and contract implementation;
+- automated verification;
+- preview-mode operation.
 
-It is a consumer crypto mini game designed to create fun, repeatable, mobile-first onchain activity on Celo.
+### Version 1.1.0 — Celo Sepolia Activation
 
-The project explores how simple games can onboard users into Web3 through familiar daily habits instead of complex financial products.
+Next release.
 
-License
+- deploy `CeloCatch.sol` to Celo Sepolia;
+- configure server signer and deployment environment;
+- test a real transaction from MiniPay Developer Mode;
+- verify `FishCaught` events in the Celo Sepolia explorer;
+- validate one-cast-per-day behavior end to end;
+- publish the testnet contract address and deployment block.
+
+### Version 1.2.0 — Celo Mainnet Readiness
+
+Planned after testnet acceptance.
+
+- complete security review;
+- configure production Celo RPC and monitoring;
+- finalize operational key management;
+- deploy to Celo Mainnet;
+- activate production gameplay.
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for release acceptance criteria.
+
+## Game distribution
+
+| Catch | XP | Probability |
+|---|---:|---:|
+| Tiny Fish | 10 | 45.00% |
+| Blue Fish | 25 | 25.00% |
+| Puffer Fish | 75 | 15.00% |
+| Golden Fish | 150 | 9.00% |
+| Shark | 350 | 4.50% |
+| Whale Catch | 1000 | 1.00% |
+| Empty Hook | 0 | 0.50% |
+
+## License
 
 MIT

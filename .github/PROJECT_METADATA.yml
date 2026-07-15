@@ -1,0 +1,50 @@
+project:
+  name: Celo Catch
+  repository: bayyubenjamin/celo-catch
+  version: 1.0.0
+  category: consumer-onchain-game
+  status: source-ready-not-deployed
+
+classification:
+  primary_ecosystem: celo
+  blockchain: Celo
+  multi_chain: false
+  wallet_runtime: MiniPay
+  application_type: MiniPay mini app
+
+chains:
+  - name: Celo Mainnet
+    chain_id: 42220
+    caip2: eip155:42220
+    role: production
+    deployment: planned
+  - name: Celo Sepolia
+    chain_id: 11142220
+    caip2: eip155:11142220
+    role: testnet
+    deployment: planned-for-v1.1.0
+
+technical_evidence:
+  network_identity: lib/celo-networks.ts
+  runtime_configuration: lib/config.ts
+  minipay_provider: lib/ethereum.ts
+  contract_source: contracts/CeloCatch.sol
+  ecosystem_tests: tests/celo-ecosystem.test.ts
+  ecosystem_documentation: docs/CELO_ECOSYSTEM.md
+  machine_manifest: project.json
+
+verification:
+  command: npm run verify
+  workflow: .github/workflows/verify.yml
+
+repository_topics:
+  - celo
+  - celo-blockchain
+  - celo-sepolia
+  - minipay
+  - minipay-miniapp
+  - onchain-game
+  - consumer-crypto
+  - solidity
+  - viem
+  - nextjs
