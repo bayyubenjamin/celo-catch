@@ -63,6 +63,40 @@ export default function CeloCatchApp() {
     [account],
   );
 
+  // ==========================================
+  // FUNGSI CONNECT WALLET MANUAL (BARU)
+  // ==========================================
+  const connectWallet = async () => {
+    if (typeof window !== "undefined" && typeof window.ethereum !== "undefined") {
+      try {
+        // Meminta user untuk memilih/menyetujui koneksi wallet
+        const accounts = (await window.ethereum.request({
+          method: "eth_requestAccounts",
+        })) as Address[];
+
+        if (accounts && accounts.length > 0) {
+          const selectedAccount = accounts[0];
+          setAccount(selectedAccount);
+          setWalletPhase("ready");
+          setStatus(
+            configured
+              ? "Your daily cast is ready."
+              : "Wallet ready. The contract still needs to be deployed."
+          );
+          await refreshGame(selectedAccount);
+        }
+      } catch (error) {
+        console.error("User menolak koneksi atau terjadi error:", error);
+      }
+    } else {
+      // Fallback jika dibuka di iOS Safari atau browser tanpa wallet
+      alert(
+        "Wallet tidak terdeteksi! \n\nPengguna iOS: Silakan buka link web ini langsung dari dalam browser aplikasi Valora, MetaMask, atau Trust Wallet Anda."
+      );
+    }
+  };
+  // ==========================================
+
   const refreshGame = useCallback(async (player?: Address | null) => {
     if (!configured) {
       setTotalCasts(0);
@@ -206,6 +240,20 @@ export default function CeloCatchApp() {
   return (
     <main className="app-shell">
       <div className="page-wrap">
+        
+        {/* TOMBOL CONNECT MANUAL (BARU) */}
+        <div className="flex justify-end mb-4">
+          <button
+            type="button"
+            onClick={connectWallet}
+            className="bg-[#1f7a72] hover:bg-[#165d56] text-white font-bold py-2 px-5 rounded-full shadow-md transition-all duration-300 text-sm border-2 border-[#142321]"
+          >
+            {account
+              ? `${account.slice(0, 6)}…${account.slice(-4)}`
+              : "Connect Wallet"}
+          </button>
+        </div>
+
         <header className="topbar">
           <div className="brand-mark" aria-hidden="true">C</div>
           <div>
