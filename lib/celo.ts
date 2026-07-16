@@ -22,15 +22,18 @@ export const publicClient = createPublicClient({
 export async function loadGameSnapshot(player?: Address): Promise<GameSnapshot> {
   if (!contractAddress) return { totalCasts: 0, canCast: false, leaders: [] };
 
-  const [totalCasts, canCast, leaders] = await Promise.all([
-    publicClient.readContract({ address: contractAddress, abi: celoCatchAbi, functionName: "totalCasts" }),
-    player
-      ? publicClient.readContract({ address: contractAddress, abi: celoCatchAbi, functionName: "canCast", args: [player] })
-      : Promise.resolve(false),
-    loadLeaderboard(publicClient),
-  ]);
+  // Karena "totalCasts" dan "canCast" sudah tidak ada di smart contract yang baru,
+  // kita hanya perlu memuat Leaderboard saja dari riwayat event (log).
+  const leaders = await loadLeaderboard(publicClient);
 
-  return { totalCasts: Number(totalCasts), canCast, leaders };
+  // Kita hitung totalCasts dari semua aktivitas di Leaderboard
+  const totalCasts = leaders.reduce((acc, current) => acc + current.casts, 0);
+
+  return { 
+    totalCasts, 
+    canCast: true, // Bypass canCast menjadi true agar user bebas memancing di UI
+    leaders 
+  };
 }
 
 async function loadLeaderboard(client: typeof publicClient): Promise<LeaderboardEntry[]> {
