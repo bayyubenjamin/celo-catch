@@ -21,7 +21,7 @@ The project follows Semantic Versioning. A release number describes the maturity
 - Viem-based wallet and contract transaction architecture.
 - Celo Sepolia development configuration.
 - Professional mobile-first interface with safe-area support.
-- Preview mode for installations without a deployed contract.
+- Preview mode for installations without deployed contracts.
 - Deterministic wallet-per-day catch generation.
 - Server-signed catch payloads.
 - Smart contract enforcement for daily eligibility, XP validation, signature deadlines, and nonce replay protection.
@@ -40,10 +40,11 @@ The project follows Semantic Versioning. A release number describes the maturity
 - Reworked the interface from a generic Web3 dashboard into a friendly mobile game experience.
 - Replaced random API reroll behavior with deterministic daily results.
 - Split the original monolithic application page into focused wallet, Celo, contract, and gameplay modules.
+- Migrated the monolithic smart contract into a modular architecture (`CeloCatchCore`, `CeloCatchToken`, `CeloCatchNFT`, `FishingRod`).
 
 ### Security
 
-- Bound signatures to the contract address, chain ID, player, fish type, XP, nonce, UTC day, and deadline.
+- Bound signatures to the core contract address, chain ID, player, fish type, XP, nonce, UTC day, and deadline.
 - Added nonce reuse prevention.
 - Added one-cast-per-wallet-per-day enforcement.
 - Added fish-to-XP validation.
@@ -52,8 +53,8 @@ The project follows Semantic Versioning. A release number describes the maturity
 
 ### Not included in this release
 
-- Celo Sepolia contract deployment.
-- Public testnet contract address.
+- Celo Sepolia modular smart contract ecosystem deployment.
+- Public testnet contract addresses.
 - End-to-end transaction confirmation from a physical MiniPay installation.
 - Celo Mainnet deployment.
 - Production RPC, monitoring, and indexing infrastructure.
@@ -64,8 +65,8 @@ Planned.
 
 Expected scope:
 
-- deploy the Version 1 contract to Celo Sepolia;
-- publish deployment address and block;
+- deploy the Version 1 modular contracts (Core, Token, NFT, FishingRod) to Celo Sepolia;
+- publish deployment addresses and blocks;
 - configure server signing infrastructure;
 - complete real MiniPay testnet transactions;
 - verify emitted events and daily eligibility;

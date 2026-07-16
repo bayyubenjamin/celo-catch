@@ -12,7 +12,7 @@ The product turns a simple mobile game loop into a lightweight onchain experienc
 
 > **Current release: Version 1.0.0 — MiniPay Foundation**
 >
-> Version 1 delivers the complete Celo application foundation, MiniPay-native wallet flow, contract source, security model, automated tests, and production-ready interface. The smart contract is intentionally **not deployed in Version 1**. Celo Sepolia deployment and live transaction activation are planned for Version 1.1.
+> Version 1 delivers the complete Celo application foundation, MiniPay-native wallet flow, contract source, security model, automated tests, and production-ready interface. The smart contracts are intentionally **not deployed in Version 1**. Celo Sepolia deployment and live transaction activation are planned for Version 1.1.
 
 ## Celo ecosystem identity
 
@@ -49,7 +49,7 @@ Repository indexers and automated classifiers can read the same classification f
 | Runtime Celo chain selection | [`lib/config.ts`](lib/config.ts) |
 | MiniPay injected-provider integration | [`lib/ethereum.ts`](lib/ethereum.ts) |
 | Celo RPC reads and event queries | [`lib/celo.ts`](lib/celo.ts) |
-| Celo smart contract source | [`contracts/CeloCatch.sol`](contracts/CeloCatch.sol) |
+| Celo modular smart contract sources | [`contracts/`](contracts/) (Core, NFT, Token, FishingRod) |
 | Celo chain identity tests | [`tests/celo-ecosystem.test.ts`](tests/celo-ecosystem.test.ts) |
 | MiniPay provider simulation | [`tests/ethereum.test.ts`](tests/ethereum.test.ts) |
 | Signature compatibility verification | [`tests/signature.test.ts`](tests/signature.test.ts) |
@@ -64,9 +64,9 @@ Repository indexers and automated classifiers can read the same classification f
 | Mobile UI/UX | Ready |
 | Daily catch engine | Ready |
 | Server-signed catch flow | Ready |
-| Solidity contract | Implemented and compile-tested |
+| Solidity contracts | Implemented and compile-tested |
 | Automated verification | Passing |
-| Celo Sepolia contract | Not deployed in Version 1 |
+| Celo Sepolia contracts | Not deployed in Version 1 |
 | Live MiniPay transaction | Planned for Version 1.1 |
 | Celo Mainnet launch | Planned after testnet validation |
 
@@ -98,8 +98,8 @@ Version 1 runs safely in **preview mode** when no contract address is configured
 
 The following items are not part of Version 1.0.0:
 
-- deployment of `CeloCatch.sol`;
-- public Celo Sepolia contract address;
+- deployment of `CeloCatchCore`, `CeloCatchToken`, `CeloCatchNFT`, and `FishingRod` contracts;
+- public Celo Sepolia contract addresses;
 - live MiniPay transaction confirmation;
 - explorer-verified `FishCaught` events;
 - production RPC infrastructure;
@@ -126,7 +126,7 @@ When blockchain activation is enabled in Version 1.1, the intended flow is:
 2. The injected MiniPay account is detected automatically.
 3. The application verifies the configured Celo network.
 4. The server generates the player's deterministic catch for the current UTC day.
-5. The server signs a payload bound to the Celo contract, chain, player, fish, XP, nonce, day, and deadline.
+5. The server signs a payload bound to the Core Celo contract, chain, player, fish, XP, nonce, day, and deadline.
 6. The player confirms the transaction in MiniPay.
 7. The contract verifies the signature and daily eligibility.
 8. The catch is emitted through `FishCaught` and added to the leaderboard history.
@@ -158,6 +158,7 @@ The application supports:
 ```text
 Celo Mainnet   eip155:42220
 Celo Sepolia   eip155:11142220
+
 ```
 
 An unrelated EVM chain is not treated as a supported production target. Development falls back to Celo Sepolia rather than a generic Ethereum network.
@@ -170,56 +171,56 @@ A wallet receives the same fish and nonce for the same UTC day. Repeated request
 
 The result is derived from:
 
-- Celo chain ID;
-- Celo contract address;
-- player address;
-- UTC day;
-- private server randomness secret.
+* Celo chain ID;
+* Core Celo contract address;
+* player address;
+* UTC day;
+* private server randomness secret.
 
 ### Signed payload
 
 Each catch signature binds:
 
-- contract address;
-- Celo chain ID;
-- player address;
-- fish type;
-- XP amount;
-- nonce;
-- UTC day;
-- expiration deadline.
+* Core contract address;
+* Celo chain ID;
+* player address;
+* fish type;
+* XP amount;
+* nonce;
+* UTC day;
+* expiration deadline.
 
 ### Contract enforcement
 
-`contracts/CeloCatch.sol` enforces:
+`contracts/CeloCatchCore.sol` enforces:
 
-- one cast per wallet per UTC day;
-- fish-to-XP validation;
-- signature expiration;
-- nonce replay protection;
-- server signer verification;
-- low-`s` ECDSA validation;
-- owner-controlled signer rotation.
+* one cast per wallet per UTC day;
+* fish-to-XP validation;
+* signature expiration;
+* nonce replay protection;
+* server signer verification;
+* low-`s` ECDSA validation;
+* owner-controlled signer rotation.
 
 ## Technology
 
-- Celo Mainnet and Celo Sepolia
-- MiniPay
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS
-- Viem
-- Solidity
-- Vitest
-- GitHub Actions
+* Celo Mainnet and Celo Sepolia
+* MiniPay
+* Next.js 16
+* React 19
+* TypeScript
+* Tailwind CSS
+* Viem
+* Solidity
+* Vitest
+* GitHub Actions
 
 ## Repository structure
 
 ```text
 app/                           Next.js routes, metadata, and API endpoint
 components/                    MiniPay-first application interface
-contracts/CeloCatch.sol        Contract prepared for Celo deployment
+contracts/                     Modular contracts (Core, Token, NFT, FishingRod)
 lib/celo-networks.ts           Canonical Celo ecosystem identity
 lib/config.ts                  Runtime Celo chain configuration
 lib/ethereum.ts                MiniPay injected-provider handling
@@ -231,19 +232,21 @@ celo.json                      Celo-specific release metadata
 docs/CELO_ECOSYSTEM.md         Celo evidence and classification map
 docs/ROADMAP.md                Release sequence and acceptance criteria
 CHANGELOG.md                   Version history
+
 ```
 
 ## Local development
 
 Requirements:
 
-- Node.js 20.9 or newer
-- npm
+* Node.js 20.9 or newer
+* npm
 
 ```bash
 npm install
 cp .env.example .env.local
 npm run dev
+
 ```
 
 Open `http://localhost:3000`.
@@ -254,16 +257,17 @@ Without a contract address, the application displays Version 1 preview mode. Thi
 
 ```dotenv
 NEXT_PUBLIC_CHAIN_ID=11142220
-NEXT_PUBLIC_RPC_URL=https://forno.celo-sepolia.celo-testnet.org
+NEXT_PUBLIC_RPC_URL=[https://forno.celo-sepolia.celo-testnet.org](https://forno.celo-sepolia.celo-testnet.org)
 NEXT_PUBLIC_CONTRACT_ADDRESS=
 NEXT_PUBLIC_START_BLOCK=0
 SERVER_SIGNER_PRIVATE_KEY=
 SERVER_RANDOMNESS_SECRET=
+
 ```
 
 For Version 1.0.0, contract and signer values may remain empty.
 
-For Version 1.1.0, the Celo contract address, deployment block, signer key, and randomness secret must be configured before live testing.
+For Version 1.1.0, the Celo contract addresses, deployment blocks, signer key, and randomness secret must be configured before live testing.
 
 Never expose server secrets using the `NEXT_PUBLIC_` prefix.
 
@@ -273,18 +277,19 @@ Run the complete verification pipeline:
 
 ```bash
 npm run verify
+
 ```
 
 The command performs:
 
-- strict TypeScript checking;
-- deterministic catch tests;
-- Celo ecosystem identity tests;
-- MiniPay provider simulation;
-- server-signature compatibility tests;
-- Solidity contract compilation;
-- MiniPay readiness checks;
-- production Next.js build.
+* strict TypeScript checking;
+* deterministic catch tests;
+* Celo ecosystem identity tests;
+* MiniPay provider simulation;
+* server-signature compatibility tests;
+* Solidity contract compilation;
+* MiniPay readiness checks;
+* production Next.js build.
 
 GitHub Actions executes the same pipeline for branch updates and pull requests.
 
@@ -294,40 +299,40 @@ GitHub Actions executes the same pipeline for branch updates and pull requests.
 
 Current release.
 
-- Celo-specific application architecture;
-- professional mobile UI/UX;
-- MiniPay-native wallet behavior;
-- security and contract implementation;
-- automated verification;
-- preview-mode operation.
+* Celo-specific application architecture;
+* professional mobile UI/UX;
+* MiniPay-native wallet behavior;
+* security and modular contracts implementation;
+* automated verification;
+* preview-mode operation.
 
 ### Version 1.1.0 — Celo Sepolia Activation
 
 Next release.
 
-- deploy `CeloCatch.sol` to Celo Sepolia;
-- configure server signer and deployment environment;
-- test a real transaction from MiniPay Developer Mode;
-- verify `FishCaught` events in the Celo Sepolia explorer;
-- validate one-cast-per-day behavior end to end;
-- publish the testnet contract address and deployment block.
+* deploy modular contracts (Core, Token, NFT, FishingRod) to Celo Sepolia;
+* configure server signer and deployment environment;
+* test a real transaction from MiniPay Developer Mode;
+* verify `FishCaught` events in the Celo Sepolia explorer;
+* validate one-cast-per-day behavior end to end;
+* publish the testnet contract addresses and deployment blocks.
 
 ### Version 1.2.0 — Celo Mainnet Readiness
 
 Planned after testnet acceptance.
 
-- complete security review;
-- configure production Celo RPC and monitoring;
-- finalize operational key management;
-- deploy to Celo Mainnet;
-- activate production gameplay.
+* complete security review;
+* configure production Celo RPC and monitoring;
+* finalize operational key management;
+* deploy to Celo Mainnet;
+* activate production gameplay.
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for release acceptance criteria.
+See [`docs/ROADMAP.md`](https://www.google.com/search?q=docs/ROADMAP.md) for release acceptance criteria.
 
 ## Game distribution
 
 | Catch | XP | Probability |
-|---|---:|---:|
+| --- | --- | --- |
 | Tiny Fish | 10 | 45.00% |
 | Blue Fish | 25 | 25.00% |
 | Puffer Fish | 75 | 15.00% |
