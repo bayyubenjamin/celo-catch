@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Providers } from "./providers"; // 👈 Tambahkan import ini
 
 const talentProjectVerification = process.env.NEXT_PUBLIC_TALENT_PROJECT_VERIFICATION;
 
@@ -24,7 +25,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* 👇 Bungkus children dengan Providers */}
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }

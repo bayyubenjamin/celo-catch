@@ -30,6 +30,11 @@ import {
   type Eip1193Provider,
 } from "@/lib/ethereum";
 
+// --- TAMBAHAN IMPORT UNTUK RAINBOWKIT & WAGMI ---
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount } from "wagmi";
+// ------------------------------------------------
+
 // --- ABI Tambahan ---
 const nftAbi = parseAbi(["function mintFish(uint256 id) external"]);
 const tokenAbi = parseAbi(["function claimReward(uint256 fishId) external"]);
@@ -69,6 +74,10 @@ export default function CeloCatchApp() {
   const [activeTab, setActiveTab] = useState<TabState>("pond");
   
   const [playerXp, setPlayerXp] = useState<number>(0);
+
+  // --- TAMBAHAN WAGMI HOOK ---
+  const { address: wagmiAddress, connector } = useAccount();
+  // ---------------------------
 
   const configured = contractAddress !== null;
   const explorerUrl = appChain.blockExplorers?.default.url;
@@ -140,6 +149,28 @@ export default function CeloCatchApp() {
   useEffect(() => {
     void connectInjectedWallet();
   }, [connectInjectedWallet]);
+
+  // --- TAMBAHAN SINKRONISASI WAGMI (AGAR FUNGSI ABANG JALAN DI IOS) ---
+  useEffect(() => {
+    async function syncWagmi() {
+      // Jika user konek lewat tombol RainbowKit (termasuk iOS)
+      if (wagmiAddress && connector) {
+        try {
+          // Ambil provider dari Wagmi dan masukkan ke logic asli abang
+          const prov = await connector.getProvider();
+          providerRef.current = prov as any;
+          setAccount(wagmiAddress);
+          setWalletPhase("ready");
+          setStatus(configured ? "Your cast is ready." : "Wallet ready. Contract not deployed.");
+          await refreshGame(wagmiAddress);
+        } catch (e) {
+          console.error("Failed to sync wagmi provider", e);
+        }
+      }
+    }
+    syncWagmi();
+  }, [wagmiAddress, connector, configured, refreshGame]);
+  // --------------------------------------------------------------------
 
   async function buyRod(id: number, priceCelo: string) {
     if (!providerRef.current || !account || !rodAddress) return;
@@ -279,6 +310,11 @@ export default function CeloCatchApp() {
           <div className="brand-mark" aria-hidden="true">C</div>
           <div><h1>Celo Catch</h1></div>
           <span className={`network-pill ${miniPay ? "is-minipay" : ""}`}>{miniPay ? "MiniPay" : appChain.name}</span>
+          
+          {/* --- TAMBAHAN TOMBOL KONEK DISINI --- */}
+          <ConnectButton />
+          {/* ---------------------------------- */}
+          
         </header>
 
         {/* --- STRUKTUR BANNER DIPERBAIKI SESUAI globals.css --- */}
