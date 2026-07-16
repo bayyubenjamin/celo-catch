@@ -7,6 +7,7 @@ import {
   custom,
   decodeEventLog,
   parseEther,
+  parseAbi,
   type Address,
   type Hash,
 } from "viem";
@@ -29,8 +30,13 @@ import {
   type Eip1193Provider,
 } from "@/lib/ethereum";
 
+// --- ABI Tambahan untuk interaksi NFT dan Token Token ---
+const nftAbi = parseAbi(["function mintFish(uint256 id) external"]);
+const tokenAbi = parseAbi(["function claimReward(uint256 fishId) external"]);
+
 type WalletPhase = "checking" | "ready" | "missing" | "error";
-type TabState = "pond" | "shop";
+// Menambahkan tab baru untuk NFT dan Token
+type TabState = "pond" | "shop" | "nft" | "token";
 
 type CatchResult = {
   fishType: number;
@@ -62,6 +68,9 @@ export default function CeloCatchApp() {
   const [lastCatch, setLastCatch] = useState<CatchResult | null>(null);
   const [transactionHash, setTransactionHash] = useState<Hash | null>(null);
   const [activeTab, setActiveTab] = useState<TabState>("pond");
+  
+  // State baru untuk melacak XP pemain
+  const [playerXp, setPlayerXp] = useState<number>(0);
 
   const configured = contractAddress !== null;
   const explorerUrl = appChain.blockExplorers?.default.url;
@@ -86,10 +95,26 @@ export default function CeloCatchApp() {
       setLeaders(snapshot.leaders);
     } catch (error) {
       console.error(error);
-      setStatus("Celo data is temporarily unavailable.");
-    } finally {
-      setRefreshing(false);
+      setStatus("Sebagian data Celo lama mungkin tidak sinkron dengan kontrak baru.");
+      // Fallback pastikan user bisa main walaupun fungsi cooldown lama dihapus
+      setCanCast(true); 
+    } 
+
+    // Fetch Player XP khusus dari kontrak baru (CeloCatchCore)
+    if (player && contractAddress) {
+      try {
+        const xp = await publicClient.readContract({
+          address: contractAddress,
+          abi: celoCatchAbi,
+          functionName: "playerXP",
+          args: [player]
+        });
+        setPlayerXp(Number(xp));
+      } catch (e) {
+        console.error("Gagal memuat XP dari kontrak", e);
+      }
     }
+    setRefreshing(false);
   }, [configured]);
 
   const connectInjectedWallet = useCallback(async () => {
@@ -107,7 +132,7 @@ export default function CeloCatchApp() {
       await ensureExpectedChain(provider, appChain, rpcUrl);
       setAccount(address);
       setWalletPhase("ready");
-      setStatus(configured ? "Your daily cast is ready." : "Wallet ready. Contract not deployed.");
+      setStatus(configured ? "Your cast is ready." : "Wallet ready. Contract not deployed.");
       await refreshGame(address);
     } catch (error) {
       setAccount(null);
@@ -120,6 +145,7 @@ export default function CeloCatchApp() {
     void connectInjectedWallet();
   }, [connectInjectedWallet]);
 
+  // --- FUNGSI FISHING ROD ---
   async function buyRod(id: number, priceCelo: string) {
     if (!providerRef.current || !account || !rodAddress) return;
     setLoading(true);
@@ -159,6 +185,26 @@ export default function CeloCatchApp() {
     } catch (error) { setStatus(readableError(error)); } finally { setLoading(false); }
   }
 
+  async function upgradeRod(fromId: number, toId: number) {
+    if (!providerRef.current || !account || !rodAddress) return;
+    setLoading(true);
+    setStatus(`Upgrading Rod...`);
+    try {
+      await ensureExpectedChain(providerRef.current, appChain, rpcUrl);
+      const walletClient = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
+      const hash = await walletClient.writeContract({
+        address: rodAddress,
+        abi: fishingRodAbi,
+        functionName: "burnAndUpgrade",
+        args: [BigInt(fromId), BigInt(toId)]
+      });
+      setTransactionHash(hash);
+      await publicClient.waitForTransactionReceipt({ hash });
+      setStatus("Rod upgraded successfully!");
+    } catch (error) { setStatus(readableError(error)); } finally { setLoading(false); }
+  }
+
+  // --- FUNGSI CELO CATCH CORE ---
   async function castLine() {
     const provider = providerRef.current;
     if (!provider || !account || !contractAddress || !canCast) return;
@@ -193,6 +239,46 @@ export default function CeloCatchApp() {
     } catch (error) { setStatus(readableError(error)); } finally { setLoading(false); }
   }
 
+  // --- FUNGSI NFT ---
+  async function mintNft(id: number) {
+    if (!providerRef.current || !account || !nftAddress) return;
+    setLoading(true);
+    setStatus(`Minting NFT...`);
+    try {
+      await ensureExpectedChain(providerRef.current, appChain, rpcUrl);
+      const walletClient = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
+      const hash = await walletClient.writeContract({
+        address: nftAddress,
+        abi: nftAbi,
+        functionName: "mintFish",
+        args: [BigInt(id)]
+      });
+      setTransactionHash(hash);
+      await publicClient.waitForTransactionReceipt({ hash });
+      setStatus("NFT Minted Successfully!");
+    } catch (error) { setStatus(readableError(error)); } finally { setLoading(false); }
+  }
+
+  // --- FUNGSI TOKEN ---
+  async function claimToken(fishId: number) {
+    if (!providerRef.current || !account || !tokenAddress) return;
+    setLoading(true);
+    setStatus(`Claiming CATCH Tokens...`);
+    try {
+      await ensureExpectedChain(providerRef.current, appChain, rpcUrl);
+      const walletClient = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
+      const hash = await walletClient.writeContract({
+        address: tokenAddress,
+        abi: tokenAbi,
+        functionName: "claimReward",
+        args: [BigInt(fishId)]
+      });
+      setTransactionHash(hash);
+      await publicClient.waitForTransactionReceipt({ hash });
+      setStatus("Tokens Claimed Successfully!");
+    } catch (error) { setStatus(readableError(error)); } finally { setLoading(false); }
+  }
+
   const castDisabled = loading || walletPhase !== "ready" || !account || !configured || !canCast;
 
   return (
@@ -204,11 +290,15 @@ export default function CeloCatchApp() {
           <span className={`network-pill ${miniPay ? "is-minipay" : ""}`}>{miniPay ? "MiniPay" : appChain.name}</span>
         </header>
 
-        <div style={{ display: "flex", gap: "8px", background: "#fff", padding: "4px", borderRadius: "12px", marginBottom: "24px" }}>
+        {/* Tab Navigation Diperluas */}
+        <div style={{ display: "flex", gap: "8px", background: "#fff", padding: "4px", borderRadius: "12px", marginBottom: "24px", overflowX: "auto" }}>
           <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'pond' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("pond")}>🎣 Pond</button>
           <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'shop' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("shop")}>⛺ Shop</button>
+          <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'nft' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("nft")}>🖼️ NFT</button>
+          <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'token' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("token")}>🎁 Reward</button>
         </div>
 
+        {/* --- POND TAB --- */}
         {activeTab === "pond" && (
           <>
             <section className="pond-card">
@@ -219,20 +309,68 @@ export default function CeloCatchApp() {
               <dl className="wallet-summary">
                 <div><dt>Wallet</dt><dd>{shortAccount}</dd></div>
                 <div><dt>Network</dt><dd>{isMainnet ? "Mainnet" : "Sepolia"}</dd></div>
+                <div><dt>Your XP</dt><dd>{playerXp} XP</dd></div>
               </dl>
               <button className="cast-button" onClick={castLine} disabled={castDisabled}>{loading ? "Casting…" : "Cast line"}</button>
               <p className="status-copy">{status}</p>
             </section>
-            {lastCatch && <section className="catch-card"><h2>{lastCatch.emoji} {lastCatch.name}</h2><p>+{lastCatch.xp} XP</p></section>}
+            
+            {lastCatch && (
+              <section className="catch-card" style={{ marginTop: '20px' }}>
+                <h2>{lastCatch.emoji} {lastCatch.name}</h2>
+                <p>+{lastCatch.xp} XP</p>
+              </section>
+            )}
+
+            {leaders.length > 0 && (
+              <section className="action-card" style={{ marginTop: '20px' }}>
+                <h2>Leaderboard</h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
+                  {leaders.map((l, rank) => (
+                    <LeaderRow key={l.address} leader={l} rank={rank + 1} />
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
 
+        {/* --- SHOP TAB --- */}
         {activeTab === "shop" && (
           <section className="action-card">
-            <h2>Rod Shop</h2>
+            <h2>Rod Shop & Upgrades</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <RodItem name="Basic" price="Free" onBuy={() => buyRod(1, "0")} onEquip={() => equipRod(1)} />
-              <RodItem name="Pro" price="5 CELO" onBuy={() => buyRod(2, "5")} onEquip={() => equipRod(2)} />
+              <ItemCard name="Basic Rod (ID: 1)" description="Free" primaryAction={() => buyRod(1, "0")} primaryLabel="Mint" secondaryAction={() => equipRod(1)} secondaryLabel="Equip" />
+              <ItemCard name="Pro Rod (ID: 2)" description="5 CELO (+50 XP Bonus)" primaryAction={() => buyRod(2, "5")} primaryLabel="Mint" secondaryAction={() => equipRod(2)} secondaryLabel="Equip" />
+              <ItemCard name="Legend Rod (ID: 3)" description="10 CELO (+200 XP Bonus)" primaryAction={() => buyRod(3, "10")} primaryLabel="Mint" secondaryAction={() => equipRod(3)} secondaryLabel="Equip" />
+              <ItemCard name="Upgrade to Pro" description="Burn 3 Basic Rods" primaryAction={() => upgradeRod(1, 2)} primaryLabel="Upgrade" />
+              <ItemCard name="Upgrade to Legend" description="Burn 3 Pro Rods" primaryAction={() => upgradeRod(2, 3)} primaryLabel="Upgrade" />
+            </div>
+            <p className="status-copy">{status}</p>
+          </section>
+        )}
+
+        {/* --- NFT TAB --- */}
+        {activeTab === "nft" && (
+          <section className="action-card">
+            <h2>Mint Exclusive NFT</h2>
+            <p style={{ fontSize: "14px", color: "#666", marginBottom: "16px" }}>Kumpulkan XP dari memancing untuk mencetak NFT Ikan unik!</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <ItemCard name="Tiny Fish NFT (ID: 1)" description="Syarat: 150 XP" primaryAction={() => mintNft(1)} primaryLabel="Mint NFT" />
+              <ItemCard name="Puffer Fish NFT (ID: 3)" description="Syarat: 2000 XP" primaryAction={() => mintNft(3)} primaryLabel="Mint NFT" />
+            </div>
+            <p className="status-copy">{status}</p>
+          </section>
+        )}
+
+        {/* --- TOKEN TAB --- */}
+        {activeTab === "token" && (
+          <section className="action-card">
+            <h2>Claim $CATCH Token</h2>
+            <p style={{ fontSize: "14px", color: "#666", marginBottom: "16px" }}>Gunakan NFT Ikan yang kamu miliki untuk mengklaim 1000 $CATCH!</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <ItemCard name="Reward Tiny Fish (ID: 1)" description="Butuh: Tiny Fish NFT" primaryAction={() => claimToken(1)} primaryLabel="Claim" />
+              <ItemCard name="Reward Puffer Fish (ID: 3)" description="Butuh: Puffer Fish NFT" primaryAction={() => claimToken(3)} primaryLabel="Claim" />
             </div>
             <p className="status-copy">{status}</p>
           </section>
@@ -250,13 +388,14 @@ export default function CeloCatchApp() {
   );
 }
 
-function RodItem({ name, price, onBuy, onEquip }: any) {
+// Mengganti RodItem menjadi ItemCard agar bisa memfasilitasi aksi tunggal (seperti upgrade/mint NFT) dan ganda
+function ItemCard({ name, description, primaryAction, primaryLabel, secondaryAction, secondaryLabel }: any) {
   return (
-    <div style={{ padding: "10px", border: "1px solid #eee", borderRadius: "8px", display: "flex", justifyContent: "space-between" }}>
-      <div><strong>{name}</strong><small>{price}</small></div>
-      <div>
-        <button onClick={onBuy} className="text-button">Mint</button>
-        <button onClick={onEquip} className="text-button">Equip</button>
+    <div style={{ padding: "10px", border: "1px solid #eee", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div><strong>{name}</strong><br/><small style={{ color: "#666" }}>{description}</small></div>
+      <div style={{ display: "flex", gap: "6px" }}>
+        {primaryAction && <button onClick={primaryAction} className="text-button">{primaryLabel}</button>}
+        {secondaryAction && <button onClick={secondaryAction} className="text-button">{secondaryLabel}</button>}
       </div>
     </div>
   );
