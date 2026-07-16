@@ -30,7 +30,7 @@ import {
   type Eip1193Provider,
 } from "@/lib/ethereum";
 
-// --- ABI Tambahan untuk interaksi NFT dan Token ---
+// --- ABI Tambahan ---
 const nftAbi = parseAbi(["function mintFish(uint256 id) external"]);
 const tokenAbi = parseAbi(["function claimReward(uint256 fishId) external"]);
 
@@ -144,7 +144,6 @@ export default function CeloCatchApp() {
   async function buyRod(id: number, priceCelo: string) {
     if (!providerRef.current || !account || !rodAddress) return;
     setLoading(true);
-    setTransactionHash(null);
     setStatus(`Minting Rod...`);
     try {
       await ensureExpectedChain(providerRef.current, appChain, rpcUrl);
@@ -282,10 +281,20 @@ export default function CeloCatchApp() {
           <span className={`network-pill ${miniPay ? "is-minipay" : ""}`}>{miniPay ? "MiniPay" : appChain.name}</span>
         </header>
 
-        {/* --- BANNER DIKEMBALIKAN KE ATAS SINI AGAR SELALU TAMPIL UTUH --- */}
-        <section className="pond-card" style={{ marginBottom: "20px" }}>
-          <h2>One cast. One catch. Every day.</h2>
-          <div className="pond-scene"><span className="hook">⌁</span></div>
+        {/* --- STRUKTUR BANNER DIPERBAIKI SESUAI globals.css --- */}
+        <section className="pond-card" style={{ marginBottom: "24px" }}>
+          <div className="pond-copy">
+            <h2>One cast. One catch. Every day.</h2>
+          </div>
+          <div className="pond-scene" aria-hidden="true">
+            <div className="sun-dot"></div>
+            <div className="fishing-line"></div>
+            <span className="hook">⌁</span>
+            <span className="fish fish-one">🐟</span>
+            <span className="fish fish-two">🐠</span>
+            <div className="water-line water-one"></div>
+            <div className="water-line water-two"></div>
+          </div>
         </section>
 
         {/* Tab Navigation */}
@@ -311,15 +320,18 @@ export default function CeloCatchApp() {
             
             {lastCatch && (
               <section className="catch-card" style={{ marginTop: '20px' }}>
-                <h2>{lastCatch.emoji} {lastCatch.name}</h2>
-                <p>+{lastCatch.xp} XP</p>
+                <div className="catch-emoji">{lastCatch.emoji}</div>
+                <div>
+                  <h2>{lastCatch.name}</h2>
+                  <p className="catch-xp">+{lastCatch.xp} XP</p>
+                </div>
               </section>
             )}
 
             {leaders.length > 0 && (
               <section className="action-card" style={{ marginTop: '20px' }}>
                 <h2>Leaderboard</h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
+                <div className="leader-list">
                   {leaders.map((l, rank) => (
                     <LeaderRow key={l.address} leader={l} rank={rank + 1} />
                   ))}
@@ -333,7 +345,7 @@ export default function CeloCatchApp() {
         {activeTab === "shop" && (
           <section className="action-card">
             <h2>Rod Shop & Upgrades</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
               <ItemCard name="Basic Rod (ID: 1)" description="Free" primaryAction={() => buyRod(1, "0")} primaryLabel="Mint" secondaryAction={() => equipRod(1)} secondaryLabel="Equip" />
               <ItemCard name="Pro Rod (ID: 2)" description="5 CELO (+50 XP Bonus)" primaryAction={() => buyRod(2, "5")} primaryLabel="Mint" secondaryAction={() => equipRod(2)} secondaryLabel="Equip" />
               <ItemCard name="Legend Rod (ID: 3)" description="10 CELO (+200 XP Bonus)" primaryAction={() => buyRod(3, "10")} primaryLabel="Mint" secondaryAction={() => equipRod(3)} secondaryLabel="Equip" />
@@ -348,7 +360,7 @@ export default function CeloCatchApp() {
         {activeTab === "nft" && (
           <section className="action-card">
             <h2>Mint Exclusive NFT</h2>
-            <p style={{ fontSize: "14px", color: "#666", marginBottom: "16px" }}>Kumpulkan XP dari memancing untuk mencetak NFT Ikan unik!</p>
+            <p style={{ fontSize: "14px", color: "var(--muted)", margin: "8px 0 16px" }}>Kumpulkan XP dari memancing untuk mencetak NFT Ikan unik!</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <ItemCard name="Tiny Fish NFT (ID: 1)" description="Syarat: 150 XP" primaryAction={() => mintNft(1)} primaryLabel="Mint NFT" />
               <ItemCard name="Puffer Fish NFT (ID: 3)" description="Syarat: 2000 XP" primaryAction={() => mintNft(3)} primaryLabel="Mint NFT" />
@@ -361,7 +373,7 @@ export default function CeloCatchApp() {
         {activeTab === "token" && (
           <section className="action-card">
             <h2>Claim $CATCH Token</h2>
-            <p style={{ fontSize: "14px", color: "#666", marginBottom: "16px" }}>Gunakan NFT Ikan yang kamu miliki untuk mengklaim 1000 $CATCH!</p>
+            <p style={{ fontSize: "14px", color: "var(--muted)", margin: "8px 0 16px" }}>Gunakan NFT Ikan yang kamu miliki untuk mengklaim 1000 $CATCH!</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <ItemCard name="Reward Tiny Fish (ID: 1)" description="Butuh: Tiny Fish NFT" primaryAction={() => claimToken(1)} primaryLabel="Claim" />
               <ItemCard name="Reward Puffer Fish (ID: 3)" description="Butuh: Puffer Fish NFT" primaryAction={() => claimToken(3)} primaryLabel="Claim" />
@@ -384,8 +396,8 @@ export default function CeloCatchApp() {
 
 function ItemCard({ name, description, primaryAction, primaryLabel, secondaryAction, secondaryLabel }: any) {
   return (
-    <div style={{ padding: "10px", border: "1px solid #eee", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div><strong>{name}</strong><br/><small style={{ color: "#666" }}>{description}</small></div>
+    <div style={{ padding: "10px", border: "1px solid var(--line)", borderRadius: "15px", background: "#fbfaf4", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div><strong>{name}</strong><br/><small style={{ color: "var(--muted)" }}>{description}</small></div>
       <div style={{ display: "flex", gap: "6px" }}>
         {primaryAction && <button onClick={primaryAction} className="text-button">{primaryLabel}</button>}
         {secondaryAction && <button onClick={secondaryAction} className="text-button">{secondaryLabel}</button>}
@@ -395,7 +407,15 @@ function ItemCard({ name, description, primaryAction, primaryLabel, secondaryAct
 }
 
 function LeaderRow({ leader, rank }: { leader: LeaderboardEntry; rank: number }) {
-  return <div className="leader-row"><span>{rank}</span><strong>{leader.address.slice(0, 6)}</strong><span>{leader.xp} XP</span></div>;
+  return (
+    <div className="leader-row">
+      <span className="rank">{rank}</span>
+      <div className="leader-address">
+        <strong>{leader.address.slice(0, 6)}...{leader.address.slice(-4)}</strong>
+      </div>
+      <span className="leader-xp">{leader.xp} XP</span>
+    </div>
+  );
 }
 
 function readableError(error: unknown): string {
