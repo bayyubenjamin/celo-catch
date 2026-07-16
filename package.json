@@ -2,7 +2,31 @@
   "name": "celo-catch",
   "version": "1.0.0",
   "private": true,
-  "description": "A MiniPay-native daily onchain fishing game built for the Celo ecosystem.",
+  "description": "A modular on-chain GameFi protocol built on the Celo ecosystem, featuring robust smart contracts for NFT utility, tokenomics, and seamless MiniPay integration.",
+  "author": "Bayyu Benjamin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bayyubenjamin/celo-catch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bayyubenjamin/celo-catch/issues"
+  },
+  "homepage": "https://github.com/bayyubenjamin/celo-catch#readme",
+  "keywords": [
+    "celo",
+    "celo-ecosystem",
+    "minipay",
+    "farcaster",
+    "farcaster-frames",
+    "talent-protocol",
+    "web3",
+    "dapp",
+    "onchain-game",
+    "gamefi",
+    "solidity",
+    "smart-contracts"
+  ],
   "engines": {
     "node": ">=20.9.0"
   },
