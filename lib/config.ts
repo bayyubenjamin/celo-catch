@@ -7,10 +7,28 @@ const requestedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? celoSepolia.
 export const appChain = resolveCeloChain(requestedChainId);
 export const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? appChain.rpcUrls.default.http[0];
 
+// --- Konfigurasi Address Kontrak Utama ---
 const configuredAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? "";
-
 export const contractAddress: Address | null = isAddress(configuredAddress)
   ? configuredAddress
+  : null;
+
+// --- Konfigurasi Address Kontrak Fishing Rod ---
+const configuredRodAddress = process.env.NEXT_PUBLIC_ROD_ADDRESS ?? "";
+export const rodAddress: Address | null = isAddress(configuredRodAddress)
+  ? configuredRodAddress
+  : null;
+
+// --- Konfigurasi Address Kontrak NFT ---
+const configuredNftAddress = process.env.NEXT_PUBLIC_NFT_ADDRESS ?? "";
+export const nftAddress: Address | null = isAddress(configuredNftAddress)
+  ? configuredNftAddress
+  : null;
+
+// --- Konfigurasi Address Kontrak Token ($CATCH) ---
+const configuredTokenAddress = process.env.NEXT_PUBLIC_TOKEN_ADDRESS ?? "";
+export const tokenAddress: Address | null = isAddress(configuredTokenAddress)
+  ? configuredTokenAddress
   : null;
 
 export const contractStartBlock = parseStartBlock(process.env.NEXT_PUBLIC_START_BLOCK);
