@@ -148,6 +148,11 @@ export default function CeloCatchApp() {
 
   useEffect(() => {
     void connectInjectedWallet();
+    // Inisialisasi state miniPay dari provider
+    const provider = getInjectedProvider();
+    if (provider && isMiniPayProvider(provider)) {
+      setMiniPay(true);
+    }
   }, [connectInjectedWallet]);
 
   // --- TAMBAHAN SINKRONISASI WAGMI (AGAR FUNGSI ABANG JALAN DI IOS) ---
@@ -311,9 +316,10 @@ export default function CeloCatchApp() {
           <div><h1>Celo Catch</h1></div>
           <span className={`network-pill ${miniPay ? "is-minipay" : ""}`}>{miniPay ? "MiniPay" : appChain.name}</span>
           
-          {/* --- TAMBAHAN TOMBOL KONEK DISINI --- */}
-          <ConnectButton />
-          {/* ---------------------------------- */}
+          {/* --- TOMBOL KONEK DISINI --- */}
+          {/* Tombol disembunyikan otomatis jika sedang di MiniPay agar lolos verifikasi */}
+          {!miniPay && <ConnectButton />}
+          {/* --------------------------- */}
           
         </header>
 
