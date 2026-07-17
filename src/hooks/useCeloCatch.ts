@@ -45,7 +45,10 @@ export function useCeloCatch() {
       const snapshot = await loadGameSnapshot(player ?? undefined);
       setCanCast(snapshot.canCast);
       setLeaders(snapshot.leaders);
-    } catch (error) { console.error(error); } 
+    } catch (error) { 
+      console.error(error); 
+      setCanCast(true); // Fallback: izinkan cast jika snapshot gagal
+    } 
     if (player && contractAddress) {
       try {
         const xp = await publicClient.readContract({ address: contractAddress, abi: celoCatchAbi, functionName: "playerXP", args: [player] });
