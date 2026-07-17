@@ -37,7 +37,6 @@ export function useCeloCatch() {
 
   const { address: wagmiAddress, connector } = useAccount();
   const configured = contractAddress !== null;
-
   const shortAccount = useMemo(() => (account ? `${account.slice(0, 6)}…${account.slice(-4)}` : "—"), [account]);
 
   const refreshGame = useCallback(async (player?: Address | null) => {
@@ -57,18 +56,26 @@ export function useCeloCatch() {
 
   useEffect(() => {
     async function sync() {
-      const provider = getInjectedProvider();
-      providerRef.current = provider;
-      setMiniPay(provider ? isMiniPayProvider(provider) : false);
       if (wagmiAddress && connector) {
         const prov = await connector.getProvider();
         providerRef.current = prov as any;
         setAccount(wagmiAddress);
+        setMiniPay(false);
+        setStatus("Your cast is ready.");
         await refreshGame(wagmiAddress);
-      } else if (provider) {
+        return;
+      }
+      const provider = getInjectedProvider();
+      if (provider) {
+        providerRef.current = provider;
+        setMiniPay(isMiniPayProvider(provider));
         const addr = await requestPrimaryAccount(provider);
         setAccount(addr);
+        await ensureExpectedChain(provider, appChain, rpcUrl);
+        setStatus("Your cast is ready.");
         await refreshGame(addr);
+      } else {
+        setStatus("Open Celo Catch from the MiniPay app to start fishing.");
       }
     }
     sync();
