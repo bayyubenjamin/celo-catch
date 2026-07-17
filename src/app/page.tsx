@@ -1,4 +1,4 @@
-import CeloCatchApp from "@/components/celo-catch-app";
+import CeloCatchApp from "../components/CeloCatchApp";
 
 export default function HomePage() {
   return <CeloCatchApp />;
