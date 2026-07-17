@@ -1,37 +1,13 @@
-// src/components/Navbar.tsx
-import React from "react";
+import { TabState } from "../hooks/useCeloCatch";
 
-interface NavbarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-}
-
-export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
-  const tabs = [
-    { id: "Pond", icon: "🎣", label: "Pond" },
-    { id: "Shop", icon: "🛒", label: "Shop" },
-    { id: "Reward", icon: "🎁", label: "Reward" },
-    { id: "Profile", icon: "👤", label: "Profile" },
-  ];
-
+export default function Navbar({ activeTab, setActiveTab }: { activeTab: TabState, setActiveTab: (t: TabState) => void }) {
   return (
-    <nav className="w-full bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
-      <div className="max-w-4xl mx-auto flex justify-around">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-4 flex flex-col items-center gap-1 transition-all duration-200 border-b-2 ${
-              activeTab === tab.id
-                ? "border-blue-500 text-blue-400 bg-slate-700/50"
-                : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"
-            }`}
-          >
-            <span className="text-xl">{tab.icon}</span>
-            <span className="text-xs font-bold uppercase tracking-wider">{tab.label}</span>
-          </button>
-        ))}
-      </div>
-    </nav>
+    <div style={{ display: "flex", gap: "8px", background: "#fff", padding: "4px", borderRadius: "12px", marginBottom: "24px", overflowX: "auto" }}>
+      <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'pond' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("pond")}>🎣 Pond</button>
+      <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'shop' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("shop")}>⛺ Shop</button>
+      <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'nft' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("nft")}>🖼️ NFT</button>
+      <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'token' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("token")}>🎁 Reward</button>
+      <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "bold", background: activeTab === 'profile' ? "#f6c453" : "transparent" }} onClick={() => setActiveTab("profile")}>👤</button>
+    </div>
   );
 }

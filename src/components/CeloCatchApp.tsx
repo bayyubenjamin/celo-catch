@@ -1,7 +1,4 @@
-// src/components/CeloCatchApp.tsx
 "use client";
-
-import React from "react";
 import { useCeloCatch } from "../hooks/useCeloCatch";
 import Navbar from "./Navbar";
 import Pond from "./Pond";
@@ -12,38 +9,42 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export default function CeloCatchApp() {
   const celoCatch = useCeloCatch();
-
   return (
-    <div className="min-h-screen bg-slate-900 text-white font-sans selection:bg-blue-500 selection:text-white">
-      <header className="w-full p-4 flex items-center justify-between bg-slate-800 border-b border-slate-700 shadow-md">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🎣</span>
-          <h1 className="text-2xl font-black bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-            Celo Catch
-          </h1>
-        </div>
-        <ConnectButton />
-      </header>
+    <main className="app-shell">
+      <div className="page-wrap">
+        <header className="topbar">
+          <div className="brand-mark" aria-hidden="true">C</div>
+          <div><h1>Celo Catch</h1></div>
+          <span className={`network-pill ${celoCatch.miniPay ? "is-minipay" : ""}`}>{celoCatch.miniPay ? "MiniPay" : celoCatch.appChain.name}</span>
+          {!celoCatch.miniPay && <ConnectButton />}
+        </header>
 
-      <div className="w-full bg-blue-600 text-white text-center py-2 text-sm font-medium tracking-wide shadow-inner">
-        Welcome to Celo Catch! Cast your line and earn rewards.
+        <section className="pond-card" style={{ marginBottom: "24px" }}>
+          <div className="pond-copy"><h2>One cast. One catch. Every day.</h2></div>
+          <div className="pond-scene" aria-hidden="true">
+            <div className="sun-dot"></div><div className="fishing-line"></div>
+            <span className="hook">⌁</span><span className="fish fish-one">🐟</span>
+            <span className="fish fish-two">🐠</span>
+            <div className="water-line water-one"></div><div className="water-line water-two"></div>
+          </div>
+        </section>
+
+        <Navbar activeTab={celoCatch.activeTab} setActiveTab={celoCatch.setActiveTab} />
+
+        {celoCatch.activeTab === "pond" && <Pond {...celoCatch} />}
+        {celoCatch.activeTab === "shop" && <Shop {...celoCatch} />}
+        {celoCatch.activeTab === "nft" && <Shop {...celoCatch} />}
+        {celoCatch.activeTab === "token" && <Reward {...celoCatch} />}
+        {celoCatch.activeTab === "profile" && <Profile />}
+
+        <section className="action-card" style={{ marginTop: '20px' }}>
+          <h2>Mainnet Ecosystem</h2>
+          <dl className="wallet-summary">
+            <div><dt>Core</dt><dd>{celoCatch.contractAddress?.slice(0, 8)}</dd></div>
+            <div><dt>Rod</dt><dd>{celoCatch.rodAddress?.slice(0, 8)}</dd></div>
+          </dl>
+        </section>
       </div>
-
-      <div className="w-full bg-slate-800 py-3 border-b border-slate-700">
-        <div className="max-w-4xl mx-auto px-4 flex items-center justify-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-sm font-semibold text-slate-300">Mainnet Ecosystem</span>
-        </div>
-      </div>
-
-      <Navbar activeTab={celoCatch.activeTab} setActiveTab={celoCatch.setActiveTab} />
-
-      <main className="max-w-4xl mx-auto p-4 pb-24">
-        {celoCatch.activeTab === "Pond" && <Pond {...celoCatch} />}
-        {celoCatch.activeTab === "Shop" && <Shop {...celoCatch} />}
-        {celoCatch.activeTab === "Reward" && <Reward {...celoCatch} />}
-        {celoCatch.activeTab === "Profile" && <Profile />}
-      </main>
-    </div>
+    </main>
   );
 }
