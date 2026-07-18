@@ -9,13 +9,16 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export default function CeloCatchApp() {
   const celoCatch = useCeloCatch();
+  
   return (
     <main className="app-shell">
       <div className="page-wrap">
         <header className="topbar">
           <div className="brand-mark" aria-hidden="true">C</div>
           <div><h1>Celo Catch</h1></div>
-          <span className={`network-pill ${celoCatch.miniPay ? "is-minipay" : ""}`}>{celoCatch.miniPay ? "MiniPay" : celoCatch.appChain.name}</span>
+          <span className={`network-pill ${celoCatch.miniPay ? "is-minipay" : ""}`}>
+            {celoCatch.miniPay ? "MiniPay" : celoCatch.appChain.name}
+          </span>
           {!celoCatch.miniPay && <ConnectButton />}
         </header>
 
@@ -35,7 +38,9 @@ export default function CeloCatchApp() {
         {celoCatch.activeTab === "shop" && <Shop {...celoCatch} />}
         {celoCatch.activeTab === "nft" && <Shop {...celoCatch} />}
         {celoCatch.activeTab === "token" && <Reward {...celoCatch} />}
-        {celoCatch.activeTab === "profile" && <Profile />}
+        
+        {/* Update di baris ini: Meneruskan data dari celoCatch ke komponen Profile */}
+        {celoCatch.activeTab === "profile" && <Profile {...celoCatch} />}
 
         <section className="action-card" style={{ marginTop: '20px' }}>
           <h2>Mainnet Ecosystem</h2>
