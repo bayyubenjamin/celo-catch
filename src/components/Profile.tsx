@@ -1,6 +1,5 @@
 import React from "react";
 
-// Definisikan props yang dibutuhkan dari useCeloCatch
 type ProfileProps = {
   shortAccount: string;
   playerXp: number;
@@ -8,6 +7,17 @@ type ProfileProps = {
   ownedRods: Record<number, number>;
   ownedNfts: Record<number, number>;
   fishGuide: { type: number; emoji: string; name: string }[];
+};
+
+// --- KONFIGURASI HARGA (BIAYA XP) UNTUK MINT SETIAP NFT ---
+// Silakan sesuaikan angka-angka ini dengan harga asli di game Anda
+const NFT_COSTS: Record<number, number> = {
+  1: 150,    // Harga mint Ikan Tipe 1 (Tiny)
+  2: 500,    // Harga mint Ikan Tipe 2 (Blue) -> Ganti jika beda
+  3: 2000,   // Harga mint Ikan Tipe 3 (Puffer)
+  4: 5000,   // Harga mint Ikan Tipe 4 (Golden) -> Ganti jika beda
+  5: 10000,  // Harga mint Ikan Tipe 5 (Shark) -> Ganti jika beda
+  6: 25000,  // Harga mint Ikan Tipe 6 (Whale) -> Ganti jika beda
 };
 
 export default function Profile({
@@ -19,7 +29,6 @@ export default function Profile({
   fishGuide,
 }: ProfileProps) {
   
-  // Fungsi kecil untuk mengubah ID Pancingan jadi nama
   const getRodName = (id: number) => {
     if (id === 1) return "Basic Rod";
     if (id === 2) return "Pro Rod";
@@ -27,20 +36,43 @@ export default function Profile({
     return "Tidak Diketahui";
   };
 
-  // Hitung total NFT Ikan yang dimiliki
+  // --- PERHITUNGAN MATEMATIS XP ---
   const totalNftsOwned = Object.values(ownedNfts).reduce((sum, current) => sum + current, 0);
+  
+  // 1. Menghitung Total XP Terpakai
+  let usedXp = 0;
+  Object.keys(ownedNfts).forEach((idStr) => {
+    const id = parseInt(idStr);
+    const amount = ownedNfts[id] || 0;
+    const cost = NFT_COSTS[id] || 0;
+    usedXp += (amount * cost);
+  });
+
+  // 2. Menghitung Sisa XP (Math.max digunakan agar tidak minus jika ada anomali data)
+  const remainingXp = Math.max(0, playerXp - usedXp);
 
   return (
     <section className="action-card" style={{ padding: "30px 20px" }}>
       <h2 style={{ textAlign: "center", marginBottom: "20px" }}>👤 Profil Pemancing</h2>
 
-      {/* Info Dompet & XP */}
+      {/* Info Dompet & XP (Sekarang dengan Kalkulasi Matematis) */}
       <div style={{ background: "rgba(0,0,0,0.05)", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
-        <p><strong>Wallet:</strong> {shortAccount}</p>
-        <p><strong>Total XP (Milestone):</strong> {playerXp} XP</p>
-        <p style={{ fontSize: "0.85em", color: "var(--muted)", marginTop: "5px" }}>
-          *XP tidak akan berkurang saat Anda minting ikan.
-        </p>
+        <p style={{ marginBottom: "10px" }}><strong>Wallet:</strong> {shortAccount}</p>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #ccc", paddingBottom: "4px" }}>
+            <span>Total XP Keseluruhan:</span>
+            <strong>{playerXp} XP</strong>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #ccc", paddingBottom: "4px", color: "var(--muted)" }}>
+            <span>XP Terpakai (Mint NFT):</span>
+            <strong>- {usedXp} XP</strong>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--primary)", fontSize: "1.1em", marginTop: "4px" }}>
+            <span><strong>Sisa XP:</strong></span>
+            <strong>{remainingXp} XP</strong>
+          </div>
+        </div>
       </div>
 
       {/* Info Pancingan */}
