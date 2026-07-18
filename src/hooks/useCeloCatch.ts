@@ -6,6 +6,15 @@ import { celoCatchAbi, fishingRodAbi } from "@/lib/contract";
 import { ensureExpectedChain, getInjectedProvider, isMiniPayProvider, requestPrimaryAccount, type Eip1193Provider } from "@/lib/ethereum";
 import { useAccount } from "wagmi";
 
+// --- TAMBAHAN ABI UNTUK MEMBACA DATA ---
+const readCoreAbi = parseAbi([
+  "function playerXP(address) view returns (uint256)",
+  "function playerRod(address) view returns (uint256)"
+]);
+const read1155Abi = parseAbi([
+  "function balanceOf(address account, uint256 id) view returns (uint256)"
+]);
+
 const nftAbi = parseAbi(["function mintFish(uint256 id) external"]);
 const tokenAbi = parseAbi(["function claimReward(uint256 fishId) external"]);
 
@@ -33,7 +42,12 @@ export function useCeloCatch() {
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const [lastCatch, setLastCatch] = useState<CatchResult | null>(null);
   const [activeTab, setActiveTab] = useState<TabState>("pond");
+  
+  // --- STATE BARU UNTUK PROFIL ---
   const [playerXp, setPlayerXp] = useState<number>(0);
+  const [equippedRod, setEquippedRod] = useState<number>(0);
+  const [ownedRods, setOwnedRods] = useState<Record<number, number>>({});
+  const [ownedNfts, setOwnedNfts] = useState<Record<number, number>>({});
 
   const { address: wagmiAddress, connector } = useAccount();
   const configured = contractAddress !== null;
@@ -47,13 +61,38 @@ export function useCeloCatch() {
       setLeaders(snapshot.leaders);
     } catch (error) { 
       console.error(error); 
-      setCanCast(true); // Fallback: izinkan cast jika snapshot gagal
+      setCanCast(true); 
     } 
-    if (player && contractAddress) {
+    
+    // --- FETCH DATA PROFIL (XP, RODS, NFTS) ---
+    if (player && contractAddress && rodAddress && nftAddress) {
       try {
-        const xp = await publicClient.readContract({ address: contractAddress, abi: celoCatchAbi, functionName: "playerXP", args: [player] });
+        // Ambil XP dan Pancingan yang dipakai
+        const [xp, rodId] = await Promise.all([
+          publicClient.readContract({ address: contractAddress, abi: readCoreAbi, functionName: "playerXP", args: [player] }),
+          publicClient.readContract({ address: contractAddress, abi: readCoreAbi, functionName: "playerRod", args: [player] })
+        ]);
         setPlayerXp(Number(xp));
-      } catch (e) { console.error(e); }
+        setEquippedRod(Number(rodId));
+
+        // Ambil balance pancingan (ID 1 sampai 3)
+        const rodBalances: Record<number, number> = {};
+        for (let i = 1; i <= 3; i++) {
+          const bal = await publicClient.readContract({ address: rodAddress, abi: read1155Abi, functionName: "balanceOf", args: [player, BigInt(i)] });
+          rodBalances[i] = Number(bal);
+        }
+        setOwnedRods(rodBalances);
+
+        // Ambil balance NFT Ikan (ID 1 sampai 6)
+        const nftBalances: Record<number, number> = {};
+        for (let i = 1; i <= 6; i++) {
+          const bal = await publicClient.readContract({ address: nftAddress, abi: read1155Abi, functionName: "balanceOf", args: [player, BigInt(i)] });
+          nftBalances[i] = Number(bal);
+        }
+        setOwnedNfts(nftBalances);
+      } catch (e) { 
+        console.error("Gagal mengambil data profil:", e); 
+      }
     }
   }, [configured]);
 
@@ -92,34 +131,37 @@ export function useCeloCatch() {
       const h = await wc.writeContract({ address: rodAddress, abi: fishingRodAbi, functionName: "buyRod", args: [BigInt(id)], value: parseEther(price) });
       await publicClient.waitForTransactionReceipt({ hash: h });
       setStatus("Success");
+      await refreshGame(account); // Refresh otomatis setelah beli
     } catch (e) { setStatus(readableError(e)); } finally { setLoading(false); }
   }
 
   async function equipRod(id: number) {
     if (!providerRef.current || !account || !contractAddress) return;
-    setLoading(true);
+    setLoading(true); setStatus("Equipping...");
     try {
       const wc = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
       const h = await wc.writeContract({ address: contractAddress, abi: celoCatchAbi, functionName: "equipRod", args: [BigInt(id)] });
       await publicClient.waitForTransactionReceipt({ hash: h });
       setStatus("Equipped");
+      await refreshGame(account); // Refresh otomatis setelah equip
     } catch (e) { setStatus(readableError(e)); } finally { setLoading(false); }
   }
 
   async function upgradeRod(f: number, t: number) {
     if (!providerRef.current || !account || !rodAddress) return;
-    setLoading(true);
+    setLoading(true); setStatus("Upgrading...");
     try {
       const wc = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
       const h = await wc.writeContract({ address: rodAddress, abi: fishingRodAbi, functionName: "burnAndUpgrade", args: [BigInt(f), BigInt(t)] });
       await publicClient.waitForTransactionReceipt({ hash: h });
       setStatus("Upgraded");
+      await refreshGame(account); // Refresh otomatis setelah upgrade
     } catch (e) { setStatus(readableError(e)); } finally { setLoading(false); }
   }
 
   async function castLine() {
     if (!providerRef.current || !account || !contractAddress || !canCast) return;
-    setLoading(true);
+    setLoading(true); setStatus("Casting line...");
     try {
       const wc = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
       const h = await wc.writeContract({ address: contractAddress, abi: celoCatchAbi, functionName: "recordCatch" });
@@ -139,18 +181,19 @@ export function useCeloCatch() {
 
   async function mintNft(id: number) {
     if (!providerRef.current || !account || !nftAddress) return;
-    setLoading(true);
+    setLoading(true); setStatus("Minting NFT...");
     try {
       const wc = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
       const h = await wc.writeContract({ address: nftAddress, abi: nftAbi, functionName: "mintFish", args: [BigInt(id)] });
       await publicClient.waitForTransactionReceipt({ hash: h });
       setStatus("Minted");
+      await refreshGame(account); // Refresh otomatis setelah mint
     } catch (e) { setStatus(readableError(e)); } finally { setLoading(false); }
   }
 
   async function claimToken(id: number) {
     if (!providerRef.current || !account || !tokenAddress) return;
-    setLoading(true);
+    setLoading(true); setStatus("Claiming token...");
     try {
       const wc = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
       const h = await wc.writeContract({ address: tokenAddress, abi: tokenAbi, functionName: "claimReward", args: [BigInt(id)] });
@@ -162,6 +205,8 @@ export function useCeloCatch() {
   return {
     miniPay, appChain, activeTab, setActiveTab, shortAccount, playerXp, loading, status, castLine,
     lastCatch, leaders, buyRod, equipRod, upgradeRod, mintNft, claimToken, contractAddress, rodAddress, isMainnet,
-    castDisabled: loading || !account || !configured || !canCast
+    castDisabled: loading || !account || !configured || !canCast,
+    // --- STATE YANG DIEKSPOR UNTUK PROFILE.TSX ---
+    equippedRod, ownedRods, ownedNfts, fishGuide
   };
 }
