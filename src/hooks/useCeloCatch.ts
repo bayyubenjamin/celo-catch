@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseError, createWalletClient, custom, decodeEventLog, parseEther, parseAbi, type Address, type Hash } from "viem";
 import { appChain, contractAddress, isMainnet, rpcUrl, rodAddress, nftAddress, tokenAddress } from "@/lib/config";
 import { loadGameSnapshot, publicClient, type LeaderboardEntry } from "@/lib/celo";
-import { celoCatchAbi, fishingRodAbi } from "@/lib/contract";
+import { celoCatchAbi, extractFishCaughtFromReceipt, fishingRodAbi } from "@/lib/contract";
 import { ensureExpectedChain, getInjectedProvider, isMiniPayProvider, requestPrimaryAccount, type Eip1193Provider } from "@/lib/ethereum";
 import { useAccount } from "wagmi";
 
@@ -166,13 +166,9 @@ export function useCeloCatch() {
       const wc = createWalletClient({ account, chain: appChain, transport: custom(providerRef.current) });
       const h = await wc.writeContract({ address: contractAddress, abi: celoCatchAbi, functionName: "recordCatch" });
       const r = await publicClient.waitForTransactionReceipt({ hash: h });
-      let cT = 1; let cX = 10;
-      for (const log of r.logs) {
-        try {
-          const d = decodeEventLog({ abi: celoCatchAbi, data: log.data, topics: log.topics });
-          if (d.eventName === "FishCaught") { const a = d.args as any; cT = Number(a.fishType); cX = Number(a.xp); }
-        } catch (e) {}
-      }
+      const fishCaught = extractFishCaughtFromReceipt(r);
+      const cT = fishCaught?.fishType ?? 1;
+      const cX = fishCaught?.xp ?? 10;
       const cI = fishGuide.find((f) => f.type === cT) || fishGuide[0];
       setLastCatch({ fishType: cT, name: cI.name, emoji: cI.emoji, xp: cX });
       await refreshGame(account);
