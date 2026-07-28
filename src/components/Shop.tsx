@@ -15,6 +15,7 @@ export default function Shop(props: any) {
       ) : (
         <>
           <h2>Mint Exclusive NFT</h2>
+          <p style={{ color: "#d9534f", fontSize: "0.85rem", marginBottom: "12px", fontWeight: "500" }}>*Peringatan: Kemungkinan gagal tx karena sedang dalam maintenance.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <ItemCard name="Tiny Fish NFT (ID: 1)" description="Syarat: 150 XP" primaryAction={() => props.mintNft(1)} primaryLabel="Mint" />
             <ItemCard name="Puffer Fish NFT (ID: 3)" description="Syarat: 2000 XP" primaryAction={() => props.mintNft(3)} primaryLabel="Mint" />
